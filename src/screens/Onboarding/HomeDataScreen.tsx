@@ -23,6 +23,45 @@ const HomeDataScreen: React.FC = () => {
     setHomeData(prev => ({ ...prev, [field]: value }));
   };
 
+  // Función para formatear números con decimales automáticamente
+  const formatDecimalInput = (field: string, value: string) => {
+    // Remover caracteres no numéricos excepto punto decimal
+    const cleanValue = value.replace(/[^0-9.]/g, '');
+    
+    // Evitar múltiples puntos decimales
+    const parts = cleanValue.split('.');
+    let formattedValue = parts[0];
+    if (parts.length > 1) {
+      formattedValue += '.' + parts[1];
+    }
+    
+    // Actualizar el estado
+    setHomeData(prev => ({ ...prev, [field]: formattedValue }));
+  };
+
+  // Función para formatear con decimales en tiempo real
+  const formatDecimalInputRealTime = (field: string, value: string) => {
+    // Remover caracteres no numéricos excepto punto decimal
+    const cleanValue = value.replace(/[^0-9.]/g, '');
+    
+    // Evitar múltiples puntos decimales
+    const parts = cleanValue.split('.');
+    let formattedValue = parts[0];
+    if (parts.length > 1) {
+      formattedValue += '.' + parts[1];
+    }
+    
+    // Actualizar el estado sin añadir decimales automáticamente mientras escribe
+    setHomeData(prev => ({ ...prev, [field]: formattedValue }));
+  };
+
+  // Función para formatear números enteros
+  const formatIntegerInput = (field: string, value: string) => {
+    // Solo permitir números enteros
+    const cleanValue = value.replace(/[^0-9]/g, '');
+    setHomeData(prev => ({ ...prev, [field]: cleanValue }));
+  };
+
   const handleHomeTypeSelect = (type: string) => {
     setHomeData(prev => ({ ...prev, homeType: type }));
   };
@@ -34,13 +73,15 @@ const HomeDataScreen: React.FC = () => {
       return;
     }
 
-    if (isNaN(Number(homeData.squareMeters)) || Number(homeData.squareMeters) <= 0) {
+    const squareMeters = parseFloat(homeData.squareMeters);
+    if (isNaN(squareMeters) || squareMeters <= 0) {
       Alert.alert('Error', 'Please enter a valid area in square meters');
       return;
     }
 
-    if (isNaN(Number(homeData.numberOfPeople)) || Number(homeData.numberOfPeople) <= 0) {
-      Alert.alert('Error', 'Please enter a valid number of people');
+    const numberOfPeople = parseInt(homeData.numberOfPeople);
+    if (isNaN(numberOfPeople) || numberOfPeople <= 0 || !Number.isInteger(numberOfPeople)) {
+      Alert.alert('Error', 'Please enter a valid whole number of people');
       return;
     }
 
@@ -104,10 +145,18 @@ const HomeDataScreen: React.FC = () => {
               <Text style={styles.inputLabel}>Area (square meters) *</Text>
               <TextInput
                 style={styles.input}
-                placeholder="e.g., 85"
+                placeholder="e.g., 85.5"
                 value={homeData.squareMeters}
-                onChangeText={(value) => handleInputChange('squareMeters', value)}
-                keyboardType="numeric"
+                onChangeText={(value) => formatDecimalInputRealTime('squareMeters', value)}
+                onBlur={() => {
+                  if (homeData.squareMeters && !homeData.squareMeters.includes('.')) {
+                    setHomeData(prev => ({ 
+                      ...prev, 
+                      squareMeters: prev.squareMeters + '.0' 
+                    }));
+                  }
+                }}
+                keyboardType="decimal-pad"
                 placeholderTextColor="#888"
               />
             </View>
@@ -118,7 +167,7 @@ const HomeDataScreen: React.FC = () => {
                 style={styles.input}
                 placeholder="e.g., 3"
                 value={homeData.numberOfPeople}
-                onChangeText={(value) => handleInputChange('numberOfPeople', value)}
+                onChangeText={(value) => formatIntegerInput('numberOfPeople', value)}
                 keyboardType="numeric"
                 placeholderTextColor="#888"
               />

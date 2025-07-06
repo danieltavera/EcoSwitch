@@ -24,6 +24,45 @@ const BaseConsumptionScreen: React.FC = () => {
     setConsumptionData(prev => ({ ...prev, [field]: value }));
   };
 
+  // Función para formatear campos de dinero con decimales automáticamente
+  const formatCurrencyInput = (field: string, value: string) => {
+    // Remover caracteres no numéricos excepto punto decimal
+    const cleanValue = value.replace(/[^0-9.]/g, '');
+    
+    // Evitar múltiples puntos decimales
+    const parts = cleanValue.split('.');
+    let formattedValue = parts[0];
+    
+    if (parts.length > 1) {
+      // Limitar a 2 decimales para moneda
+      formattedValue += '.' + parts[1].substring(0, 2);
+    } else if (cleanValue.length > 0 && !cleanValue.includes('.')) {
+      // Si es un número entero y tiene contenido, añadir .00
+      formattedValue += '.00';
+    }
+    
+    // Actualizar el estado
+    setConsumptionData(prev => ({ ...prev, [field]: formattedValue }));
+  };
+
+  // Función para formatear con decimales mientras el usuario escribe
+  const formatCurrencyInputRealTime = (field: string, value: string) => {
+    // Remover caracteres no numéricos excepto punto decimal
+    const cleanValue = value.replace(/[^0-9.]/g, '');
+    
+    // Evitar múltiples puntos decimales
+    const parts = cleanValue.split('.');
+    let formattedValue = parts[0];
+    
+    if (parts.length > 1) {
+      // Limitar a 2 decimales para moneda
+      formattedValue += '.' + parts[1].substring(0, 2);
+    }
+    
+    // Actualizar el estado sin añadir .00 automáticamente mientras escribe
+    setConsumptionData(prev => ({ ...prev, [field]: formattedValue }));
+  };
+
   const handleGoalSelect = (goal: string) => {
     setConsumptionData(prev => ({ ...prev, energyGoal: goal }));
   };
@@ -39,9 +78,27 @@ const BaseConsumptionScreen: React.FC = () => {
       return;
     }
 
-    if (isNaN(Number(consumptionData.monthlyElectricBill)) || Number(consumptionData.monthlyElectricBill) <= 0) {
+    const electricBill = parseFloat(consumptionData.monthlyElectricBill);
+    if (isNaN(electricBill) || electricBill <= 0) {
       Alert.alert('Error', 'Please enter a valid electric bill amount');
       return;
+    }
+
+    // Validar campos opcionales si están llenos
+    if (consumptionData.monthlyGasBill) {
+      const gasBill = parseFloat(consumptionData.monthlyGasBill);
+      if (isNaN(gasBill) || gasBill < 0) {
+        Alert.alert('Error', 'Please enter a valid gas bill amount');
+        return;
+      }
+    }
+
+    if (consumptionData.monthlyWaterBill) {
+      const waterBill = parseFloat(consumptionData.monthlyWaterBill);
+      if (isNaN(waterBill) || waterBill < 0) {
+        Alert.alert('Error', 'Please enter a valid water bill amount');
+        return;
+      }
     }
 
     console.log('Consumption Data:', consumptionData);
@@ -96,10 +153,18 @@ const BaseConsumptionScreen: React.FC = () => {
               <Text style={styles.inputLabel}>Electricity Bill ($) *</Text>
               <TextInput
                 style={styles.input}
-                placeholder="e.g., 120"
+                placeholder="e.g., 120.50"
                 value={consumptionData.monthlyElectricBill}
-                onChangeText={(value) => handleInputChange('monthlyElectricBill', value)}
-                keyboardType="numeric"
+                onChangeText={(value) => formatCurrencyInputRealTime('monthlyElectricBill', value)}
+                onBlur={() => {
+                  if (consumptionData.monthlyElectricBill && !consumptionData.monthlyElectricBill.includes('.')) {
+                    setConsumptionData(prev => ({ 
+                      ...prev, 
+                      monthlyElectricBill: prev.monthlyElectricBill + '.00' 
+                    }));
+                  }
+                }}
+                keyboardType="decimal-pad"
                 placeholderTextColor="#888"
               />
             </View>
@@ -108,10 +173,18 @@ const BaseConsumptionScreen: React.FC = () => {
               <Text style={styles.inputLabel}>Gas Bill ($)</Text>
               <TextInput
                 style={styles.input}
-                placeholder="e.g., 80"
+                placeholder="e.g., 80.25"
                 value={consumptionData.monthlyGasBill}
-                onChangeText={(value) => handleInputChange('monthlyGasBill', value)}
-                keyboardType="numeric"
+                onChangeText={(value) => formatCurrencyInputRealTime('monthlyGasBill', value)}
+                onBlur={() => {
+                  if (consumptionData.monthlyGasBill && !consumptionData.monthlyGasBill.includes('.')) {
+                    setConsumptionData(prev => ({ 
+                      ...prev, 
+                      monthlyGasBill: prev.monthlyGasBill + '.00' 
+                    }));
+                  }
+                }}
+                keyboardType="decimal-pad"
                 placeholderTextColor="#888"
               />
             </View>
@@ -120,10 +193,18 @@ const BaseConsumptionScreen: React.FC = () => {
               <Text style={styles.inputLabel}>Water Bill ($)</Text>
               <TextInput
                 style={styles.input}
-                placeholder="e.g., 45"
+                placeholder="e.g., 45.75"
                 value={consumptionData.monthlyWaterBill}
-                onChangeText={(value) => handleInputChange('monthlyWaterBill', value)}
-                keyboardType="numeric"
+                onChangeText={(value) => formatCurrencyInputRealTime('monthlyWaterBill', value)}
+                onBlur={() => {
+                  if (consumptionData.monthlyWaterBill && !consumptionData.monthlyWaterBill.includes('.')) {
+                    setConsumptionData(prev => ({ 
+                      ...prev, 
+                      monthlyWaterBill: prev.monthlyWaterBill + '.00' 
+                    }));
+                  }
+                }}
+                keyboardType="decimal-pad"
                 placeholderTextColor="#888"
               />
             </View>
