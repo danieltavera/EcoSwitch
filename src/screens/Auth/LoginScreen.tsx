@@ -1,13 +1,17 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { LoginNavigationProp } from '../../types/navigation';
 
 const LoginScreen: React.FC = () => {
+  const navigation = useNavigation<LoginNavigationProp>();
+
   const handleSignUp = () => {
-    console.log('Redirigir a formulario de registro');
+    navigation.navigate('SignUp');
   };
 
   const handleSignIn = () => {
-    console.log('Redirigir a login');
+    navigation.navigate('SignIn');
   };
 
   return (

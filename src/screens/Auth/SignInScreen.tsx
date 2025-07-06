@@ -1,13 +1,18 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { SignInNavigationProp } from '../../types/navigation';
 
 const SignInScreen: React.FC = () => {
+  const navigation = useNavigation<SignInNavigationProp>();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
   const handleSignIn = () => {
     console.log('Sign In:', email, password);
     // Aquí irá la lógica de autenticación
+    // Por ahora simularemos login exitoso navegando al dashboard
+    // navigation.navigate('Dashboard');
   };
 
   const handleForgotPassword = () => {
@@ -15,7 +20,7 @@ const SignInScreen: React.FC = () => {
   };
 
   const handleSignUp = () => {
-    console.log('Ir a registro');
+    navigation.navigate('SignUp');
   };
 
   const handleSocialLogin = (platform: string) => {
