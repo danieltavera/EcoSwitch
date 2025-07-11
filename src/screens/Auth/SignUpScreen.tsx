@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, Alert, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { SignUpNavigationProp } from '../../types/navigation';
 
@@ -53,7 +53,11 @@ const SignUpScreen: React.FC = () => {
       >
         <View style={styles.container}>
           <View style={styles.logoContainer}>
-            <Text style={styles.sunLogo}>☀️</Text>
+            <Image 
+              source={require('../../assets/images/ecoswitch_logo.png')} 
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
             <Text style={styles.logoText}>ECOSWITCH</Text>
             <Text style={styles.logoSubtext}>ENERGY TRACKER</Text>
           </View>
@@ -153,9 +157,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 40,
   },
-  sunLogo: {
-    fontSize: 48,
-    marginBottom: 12,
+  logoImage: {
+    width: 160,
+    height: 160,
+    marginBottom: -30,
   },
   logoText: {
     fontSize: 24,

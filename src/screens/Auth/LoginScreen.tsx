@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { LoginNavigationProp } from '../../types/navigation';
 
@@ -18,7 +18,11 @@ const LoginScreen: React.FC = () => {
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f8f9fa' }}>
       <View style={styles.container}>
         <View style={styles.logoContainer}>
-          <Text style={styles.sunLogo}>☀️</Text>
+          <Image 
+            source={require('../../assets/images/ecoswitch_logo.png')} 
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
           <Text style={styles.logoText}>ECOSWITCH</Text>
           <Text style={styles.logoSubtext}>ENERGY TRACKER</Text>
         </View>
@@ -58,9 +62,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 80,
   },
-  sunLogo: {
-    fontSize: 64,
-    marginBottom: 16,
+  logoImage: {
+    width: 210,
+    height: 210,
+    marginBottom: -45,
   },
   logoText: {
     fontSize: 28,

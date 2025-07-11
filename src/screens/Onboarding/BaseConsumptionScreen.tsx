@@ -109,10 +109,7 @@ const BaseConsumptionScreen: React.FC = () => {
         text: 'Get Started', 
         onPress: () => {
           console.log('Navigate to Dashboard');
-          // Aquí navegaremos al dashboard cuando lo creemos
-          // navigation.navigate('Dashboard' as never);
-          // Por ahora volvemos al login para demostrar el flujo
-          navigation.navigate('Login' as never);
+          navigation.navigate('Dashboard');
         }
       }]
     );

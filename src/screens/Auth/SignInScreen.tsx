@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { SignInNavigationProp } from '../../types/navigation';
 
@@ -12,7 +12,7 @@ const SignInScreen: React.FC = () => {
     console.log('Sign In:', email, password);
     // Aquí irá la lógica de autenticación
     // Por ahora simularemos login exitoso navegando al dashboard
-    // navigation.navigate('Dashboard');
+    navigation.navigate('Dashboard');
   };
 
   const handleForgotPassword = () => {
@@ -21,10 +21,6 @@ const SignInScreen: React.FC = () => {
 
   const handleSignUp = () => {
     navigation.navigate('SignUp');
-  };
-
-  const handleSocialLogin = (platform: string) => {
-    console.log(`Login con ${platform}`);
   };
 
   return (
@@ -36,7 +32,11 @@ const SignInScreen: React.FC = () => {
       >
         <View style={styles.container}>
         <View style={styles.logoContainer}>
-          <Text style={styles.sunLogo}>☀️</Text>
+          <Image 
+            source={require('../../assets/images/ecoswitch_logo.png')} 
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
           <Text style={styles.logoText}>ECOSWITCH</Text>
           <Text style={styles.logoSubtext}>ENERGY TRACKER</Text>
         </View>
@@ -103,9 +103,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 60,
   },
-  sunLogo: {
-    fontSize: 64,
-    marginBottom: 16,
+  logoImage: {
+    width: 210,
+    height: 210,
+    marginBottom: -45,
   },
   logoText: {
     fontSize: 28,
