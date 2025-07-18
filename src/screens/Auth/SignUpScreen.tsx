@@ -13,31 +13,68 @@ const SignUpScreen: React.FC = () => {
     confirmPassword: '',
     phone: '',
   });
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSignUp = () => {
+  const handleSignUp = async () => {
     // Validaciones básicas
     if (!formData.firstName || !formData.lastName || !formData.email || !formData.password) {
-      Alert.alert('Error', 'Please fill in all required fields');
+      Alert.alert('Error', 'Por favor completa todos los campos requeridos');
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
+      Alert.alert('Error', 'Las contraseñas no coinciden');
       return;
     }
 
     if (formData.password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
+      Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres');
       return;
     }
 
-    console.log('Sign Up Data:', formData);
-    // Navegación a configuración inicial
-    navigation.navigate('InitialSetup');
+    setIsLoading(true);
+
+    try {
+      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          phone: formData.phone || null,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        Alert.alert(
+          'Éxito', 
+          'Usuario registrado exitosamente',
+          [
+            {
+              text: 'OK',
+              onPress: () => navigation.navigate('Login')
+            }
+          ]
+        );
+      } else {
+        Alert.alert('Error', data.error || 'Error al registrar usuario');
+      }
+    } catch (error) {
+      console.error('Error de registro:', error);
+      Alert.alert('Error', 'Error de conexión. Verifica que el servidor esté ejecutándose.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSignIn = () => {
@@ -121,9 +158,15 @@ const SignUpScreen: React.FC = () => {
             />
           </View>
           
-          <TouchableOpacity style={styles.primaryButton} onPress={handleSignUp}>
+          <TouchableOpacity 
+            style={[styles.primaryButton, isLoading && styles.primaryButtonDisabled]} 
+            onPress={handleSignUp}
+            disabled={isLoading}
+          >
             <Text style={styles.primaryButtonIcon}>🌱</Text>
-            <Text style={styles.primaryButtonText}>Create Account</Text>
+            <Text style={styles.primaryButtonText}>
+              {isLoading ? 'Registrando...' : 'Create Account'}
+            </Text>
           </TouchableOpacity>
           
           <View style={styles.dividerContainer}>
@@ -235,6 +278,11 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  primaryButtonDisabled: {
+    backgroundColor: '#cccccc',
+    shadowOpacity: 0,
+    elevation: 0,
   },
   dividerContainer: {
     flexDirection: 'row',

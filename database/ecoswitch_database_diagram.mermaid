@@ -1,0 +1,263 @@
+---
+title: EcoSwitch Database Schema
+---
+erDiagram
+    %% Core User Management
+    USERS {
+        uuid id PK
+        varchar email UK
+        varchar password_hash
+        varchar first_name
+        varchar last_name
+        varchar phone
+        timestamp created_at
+        timestamp updated_at
+        boolean is_active
+        varchar timezone
+    }
+
+    %% Household Information
+    HOUSEHOLDS {
+        uuid id PK
+        uuid user_id FK
+        varchar household_name
+        integer occupants_count
+        varchar property_type
+        decimal square_meters
+        varchar location_city
+        varchar location_country
+        decimal baseline_electricity
+        decimal baseline_gas
+        decimal baseline_water
+        boolean has_renewable_energy
+        varchar energy_goal
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    %% Energy Consumption Tracking
+    ENERGY_CONSUMPTION {
+        uuid id PK
+        uuid user_id FK
+        uuid household_id FK
+        varchar period
+        varchar energy_type
+        decimal kwh_consumed
+        decimal cost_amount
+        decimal gas_usage
+        decimal water_usage
+        varchar currency
+        date billing_period_start
+        date billing_period_end
+        timestamp logged_at
+        varchar notes
+        boolean is_estimated
+        date custom_date
+    }
+
+    %% Detailed Energy Bills (for comprehensive tracking)
+    ENERGY_BILLS {
+        uuid id PK
+        uuid user_id FK
+        uuid household_id FK
+        varchar period
+        decimal electricity_kwh
+        decimal electricity_cost
+        decimal gas_usage
+        decimal gas_cost
+        decimal water_usage
+        decimal water_cost
+        varchar currency
+        date bill_date
+        timestamp created_at
+        varchar notes
+    }
+
+    %% Challenges System
+    CHALLENGES {
+        uuid id PK
+        varchar title
+        text description
+        varchar category
+        varchar difficulty_level
+        integer points_reward
+        integer duration_days
+        text completion_criteria
+        boolean is_active
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    %% User Challenge Progress
+    USER_CHALLENGES {
+        uuid id PK
+        uuid user_id FK
+        uuid challenge_id FK
+        timestamp started_at
+        timestamp completed_at
+        varchar status
+        decimal progress_percentage
+        json progress_data
+        integer points_earned
+    }
+
+    %% Educational Content
+    EDUCATIONAL_CONTENT {
+        uuid id PK
+        varchar title
+        text content
+        varchar category
+        varchar difficulty_level
+        integer estimated_read_time
+        integer points_reward
+        varchar content_type
+        text learning_objectives
+        boolean is_published
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    %% User Education Progress
+    USER_EDUCATION_PROGRESS {
+        uuid id PK
+        uuid user_id FK
+        uuid content_id FK
+        timestamp started_at
+        timestamp completed_at
+        decimal progress_percentage
+        integer points_earned
+        json quiz_results
+    }
+
+    %% Community Posts
+    COMMUNITY_POSTS {
+        uuid id PK
+        uuid user_id FK
+        varchar title
+        text content
+        varchar post_type
+        varchar category
+        integer likes_count
+        integer comments_count
+        boolean is_featured
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    %% Community Comments
+    COMMUNITY_COMMENTS {
+        uuid id PK
+        uuid post_id FK
+        uuid user_id FK
+        text content
+        uuid parent_comment_id FK
+        integer likes_count
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    %% Local Resources
+    LOCAL_RESOURCES {
+        uuid id PK
+        varchar name
+        text description
+        varchar category
+        varchar address
+        decimal latitude
+        decimal longitude
+        varchar contact_info
+        varchar website
+        json operating_hours
+        boolean is_verified
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    %% Achievements System
+    ACHIEVEMENTS {
+        uuid id PK
+        varchar title
+        text description
+        varchar category
+        varchar icon
+        varchar criteria_type
+        json criteria_data
+        integer points_value
+        varchar rarity_level
+        boolean is_active
+        timestamp created_at
+    }
+
+    %% User Achievements
+    USER_ACHIEVEMENTS {
+        uuid id PK
+        uuid user_id FK
+        uuid achievement_id FK
+        timestamp earned_at
+        json context_data
+    }
+
+    %% Notifications System
+    NOTIFICATIONS {
+        uuid id PK
+        uuid user_id FK
+        varchar type
+        varchar title
+        text message
+        json data
+        boolean is_read
+        timestamp scheduled_for
+        timestamp sent_at
+        timestamp created_at
+    }
+
+    %% User Settings
+    USER_SETTINGS {
+        uuid id PK
+        uuid user_id FK
+        json notification_preferences
+        varchar preferred_units
+        varchar language
+        boolean data_sharing_consent
+        json privacy_settings
+        timestamp updated_at
+    }
+
+    %% Analytics and Insights
+    USER_ANALYTICS {
+        uuid id PK
+        uuid user_id FK
+        date analytics_date
+        decimal energy_savings_percentage
+        decimal cost_savings_amount
+        integer active_challenges_count
+        integer completed_lessons_count
+        integer community_engagement_score
+        json weekly_summary
+        timestamp created_at
+    }
+
+    %% Relationships
+    USERS ||--|| HOUSEHOLDS : owns
+    USERS ||--o{ ENERGY_CONSUMPTION : logs
+    HOUSEHOLDS ||--o{ ENERGY_CONSUMPTION : belongs_to
+    USERS ||--o{ ENERGY_BILLS : tracks
+    HOUSEHOLDS ||--o{ ENERGY_BILLS : has_bills
+    
+    USERS ||--o{ USER_CHALLENGES : participates
+    CHALLENGES ||--o{ USER_CHALLENGES : has_participants
+    
+    USERS ||--o{ USER_EDUCATION_PROGRESS : studies
+    EDUCATIONAL_CONTENT ||--o{ USER_EDUCATION_PROGRESS : tracked_by
+    
+    USERS ||--o{ COMMUNITY_POSTS : creates
+    COMMUNITY_POSTS ||--o{ COMMUNITY_COMMENTS : has
+    USERS ||--o{ COMMUNITY_COMMENTS : writes
+    COMMUNITY_COMMENTS ||--o{ COMMUNITY_COMMENTS : replies_to
+    
+    USERS ||--o{ USER_ACHIEVEMENTS : earns
+    ACHIEVEMENTS ||--o{ USER_ACHIEVEMENTS : awarded_to
+    
+    USERS ||--o{ NOTIFICATIONS : receives
+    USERS ||--|| USER_SETTINGS : has
+    USERS ||--o{ USER_ANALYTICS : generates
