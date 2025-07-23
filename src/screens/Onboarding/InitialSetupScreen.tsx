@@ -11,9 +11,7 @@ const InitialSetupScreen: React.FC = () => {
   };
 
   const handleSkipForNow = () => {
-    console.log('Saltar configuración por ahora');
-    // Aquí irá la navegación al dashboard principal cuando lo creemos
-    // navigation.navigate('Dashboard');
+    navigation.navigate('Dashboard');
   };
 
   return (

@@ -6,7 +6,12 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "backend": "cd backend && npm run dev",
+    "dev": "concurrently --kill-others --prefix-colors \"blue,green\" --names \"🚀API,📱EXPO\" --raw \"npm run backend\" \"npm run start\"",
+    "dev:clear": "concurrently --kill-others --prefix-colors \"blue,green\" --names \"🚀API,📱EXPO\" \"npm run backend\" \"expo start --clear\"",
+    "dev:android": "concurrently --kill-others --prefix-colors \"blue,green\" --names \"🚀API,📱EXPO\" \"npm run backend\" \"npm run android\"",
+    "dev:ios": "concurrently --kill-others --prefix-colors \"blue,green\" --names \"🚀API,📱EXPO\" \"npm run backend\" \"npm run ios\""
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.2.0",
@@ -15,6 +20,7 @@
     "@react-navigation/native-stack": "^7.3.21",
     "axios": "^1.10.0",
     "expo": "~53.0.17",
+    "expo-linear-gradient": "~14.1.5",
     "expo-secure-store": "~14.2.3",
     "expo-status-bar": "~2.2.3",
     "react": "19.0.0",
@@ -23,12 +29,12 @@
     "react-native-safe-area-context": "5.4.0",
     "react-native-screens": "~4.11.1",
     "react-native-svg": "15.11.2",
-    "react-native-vector-icons": "^10.2.0",
-    "expo-linear-gradient": "~14.1.5"
+    "react-native-vector-icons": "^10.2.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@types/react": "~19.0.10",
+    "concurrently": "^9.2.0",
     "typescript": "~5.8.3"
   },
   "private": true

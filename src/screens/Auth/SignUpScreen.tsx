@@ -62,7 +62,7 @@ const SignUpScreen: React.FC = () => {
           [
             {
               text: 'OK',
-              onPress: () => navigation.navigate('Login')
+              onPress: () => navigation.navigate('InitialSetup')
             }
           ]
         );

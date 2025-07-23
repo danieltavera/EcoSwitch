@@ -42,7 +42,7 @@ const DashboardScreen: React.FC = () => {
 
   const handleProfile = () => {
     console.log('Navigate to Profile');
-    // TODO: navigation.navigate('Profile');
+    navigation.navigate('Profile');
   };
 
   const handleLogout = () => {

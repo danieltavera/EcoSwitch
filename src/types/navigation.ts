@@ -11,6 +11,7 @@ export type RootStackParamList = {
   BaseConsumption: undefined;
   Dashboard: undefined;
   Consumption: undefined;
+  Profile: undefined;
 };
 
 // Tipos para navigation prop
@@ -34,3 +35,4 @@ export type HomeDataNavigationProp = NavigationProp<'HomeData'>;
 export type BaseConsumptionNavigationProp = NavigationProp<'BaseConsumption'>;
 export type DashboardNavigationProp = NavigationProp<'Dashboard'>;
 export type ConsumptionNavigationProp = NavigationProp<'Consumption'>;
+export type ProfileNavigationProp = NavigationProp<'Profile'>;

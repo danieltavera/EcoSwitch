@@ -9,6 +9,7 @@ import HomeDataScreen from '../screens/Onboarding/HomeDataScreen';
 import BaseConsumptionScreen from '../screens/Onboarding/BaseConsumptionScreen';
 import DashboardScreen from '../screens/Dashboard/DashboardScreen';
 import ConsumptionScreen from '../screens/Consumption/ConsumptionScreen';
+import ProfileScreen from '../screens/Profile/ProfileScreen';
 import { RootStackParamList } from '../types/navigation';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -54,6 +55,11 @@ const AppNavigator = () => (
       <Stack.Screen
         name="Consumption"
         component={ConsumptionScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Profile"
+        component={ProfileScreen}
         options={{ headerShown: false }}
       />
     </Stack.Navigator>
