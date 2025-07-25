@@ -26,13 +26,11 @@ const DashboardScreen: React.FC = () => {
   };
 
   const handleViewChallenges = () => {
-    console.log('Navigate to Challenges');
-    // TODO: navigation.navigate('Challenges');
+    navigation.navigate('Challenges');
   };
 
   const handleEducationCenter = () => {
-    console.log('Navigate to Education');
-    // TODO: navigation.navigate('Education');
+    navigation.navigate('Education');
   };
 
   const handleCommunity = () => {

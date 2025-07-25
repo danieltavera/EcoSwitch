@@ -12,6 +12,8 @@ export type RootStackParamList = {
   Dashboard: undefined;
   Consumption: undefined;
   Profile: undefined;
+  Challenges: undefined;
+  Education: undefined;
 };
 
 // Tipos para navigation prop
@@ -36,3 +38,5 @@ export type BaseConsumptionNavigationProp = NavigationProp<'BaseConsumption'>;
 export type DashboardNavigationProp = NavigationProp<'Dashboard'>;
 export type ConsumptionNavigationProp = NavigationProp<'Consumption'>;
 export type ProfileNavigationProp = NavigationProp<'Profile'>;
+export type ChallengesNavigationProp = NavigationProp<'Challenges'>;
+export type EducationNavigationProp = NavigationProp<'Education'>;

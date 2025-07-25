@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Image, ScrollView } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { InitialSetupNavigationProp } from '../../types/navigation';
 
@@ -7,203 +8,254 @@ const InitialSetupScreen: React.FC = () => {
   const navigation = useNavigation<InitialSetupNavigationProp>();
 
   const handleGetStarted = () => {
-    navigation.navigate('HomeData');
+    navigation.navigate('Login');
   };
 
-  const handleSkipForNow = () => {
-    navigation.navigate('Dashboard');
-  };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#f8f9fa' }}>
-      <View style={styles.container}>
-        <View style={styles.logoContainer}>
-          <Text style={styles.sunLogo}>☀️</Text>
-          <Text style={styles.logoText}>ECOSWITCH</Text>
-          <Text style={styles.logoSubtext}>ENERGY TRACKER</Text>
-        </View>
-        
-        <View style={styles.contentContainer}>
-          <Text style={styles.welcomeText}>Welcome to EcoSwitch!</Text>
-          <Text style={styles.title}>Let's Set Up Your Profile</Text>
-          <Text style={styles.subtitle}>
-            To provide you with personalized energy insights and recommendations, 
-            we'll need some basic information about your home and energy usage.
-          </Text>
+    <LinearGradient
+      colors={['#2E7D32', '#43A047', '#66BB6A', '#A5D6A7', '#BDBDBD']}
+      style={styles.container}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+      locations={[0, 0.3, 0.6, 0.85, 1]}
+    >
+      <SafeAreaView style={styles.safeArea}>
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          bounces={true}
+        >
+          {/* Logo */}
+          <View style={styles.logoContainer}>
+            <Image 
+              source={require('../../assets/images/ecoswitch_logo.png')} 
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
+            <Text style={styles.logoText}>ECOSWITCH</Text>
+            <Text style={styles.logoSubtext}>ENERGY TRACKER</Text>
+          </View>
           
-          <View style={styles.stepsContainer}>
-            <View style={styles.stepItem}>
-              <Text style={styles.stepIcon}>🏠</Text>
-              <View style={styles.stepContent}>
-                <Text style={styles.stepTitle}>Home Information</Text>
-                <Text style={styles.stepDescription}>Tell us about your living space</Text>
-              </View>
-            </View>
+          <View style={styles.contentContainer}>
+            <Text style={styles.welcomeText}>Welcome to the Future of Energy!</Text>
+            <Text style={styles.title}>Track, Save & Go Green</Text>
+            <Text style={styles.subtitle}>
+              Join thousands of users reducing their carbon footprint and saving money with smart energy management.
+            </Text>
             
-            <View style={styles.stepItem}>
-              <Text style={styles.stepIcon}>⚡</Text>
-              <View style={styles.stepContent}>
-                <Text style={styles.stepTitle}>Energy Baseline</Text>
-                <Text style={styles.stepDescription}>Set your current consumption data</Text>
+            <View style={styles.featuresContainer}>
+              <View style={styles.featureItem}>
+                <Text style={styles.featureIcon}>📊</Text>
+                <View style={styles.featureContent}>
+                  <Text style={styles.featureTitle}>Track Your Usage</Text>
+                  <Text style={styles.featureDescription}>Monitor electricity, gas & water consumption</Text>
+                </View>
               </View>
-            </View>
-            
-            <View style={styles.stepItem}>
-              <Text style={styles.stepIcon}>🎯</Text>
-              <View style={styles.stepContent}>
-                <Text style={styles.stepTitle}>Goals & Preferences</Text>
-                <Text style={styles.stepDescription}>Define your eco-friendly targets</Text>
+              
+              <View style={styles.featureItem}>
+                <Text style={styles.featureIcon}>🎯</Text>
+                <View style={styles.featureContent}>
+                  <Text style={styles.featureTitle}>Join Challenges</Text>
+                  <Text style={styles.featureDescription}>Earn points and compete with the community</Text>
+                </View>
+              </View>
+              
+              <View style={styles.featureItem}>
+                <Text style={styles.featureIcon}>📚</Text>
+                <View style={styles.featureContent}>
+                  <Text style={styles.featureTitle}>Learn & Grow</Text>
+                  <Text style={styles.featureDescription}>Access educational content and energy tips</Text>
+                </View>
+              </View>
+
+              <View style={styles.featureItem}>
+                <Text style={styles.featureIcon}>💰</Text>
+                <View style={styles.featureContent}>
+                  <Text style={styles.featureTitle}>Save Money</Text>
+                  <Text style={styles.featureDescription}>Reduce bills with personalized insights</Text>
+                </View>
               </View>
             </View>
           </View>
-        </View>
-        
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.primaryButton} onPress={handleGetStarted}>
-            <Text style={styles.primaryButtonIcon}>🚀</Text>
-            <Text style={styles.primaryButtonText}>Get Started</Text>
-          </TouchableOpacity>
           
-          <TouchableOpacity style={styles.secondaryButton} onPress={handleSkipForNow}>
-            <Text style={styles.secondaryButtonText}>Skip for now</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </SafeAreaView>
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity style={styles.primaryButton} onPress={handleGetStarted}>
+              <Text style={styles.primaryButtonIcon}>🚀</Text>
+              <Text style={styles.primaryButtonText}>Get Started</Text>
+            </TouchableOpacity>
+            
+           
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  safeArea: {
+    flex: 1,
     paddingHorizontal: 32,
-    paddingTop: 40,
-    paddingBottom: 40,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingVertical: 20,
+  },
+  content: {
+    flex: 1,
     justifyContent: 'space-between',
+    paddingVertical: 20,
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginTop: 20,
+    marginBottom: 30,
   },
-  sunLogo: {
-    fontSize: 48,
-    marginBottom: 12,
+  logoImage: {
+    width: 80,
+    height: 80,
+    marginBottom: -12,
+  },
+  logoIcon: {
+    fontSize: 60,
+    marginBottom: 16,
   },
   logoText: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
-    color: '#2E7D32',
-    letterSpacing: 2,
+    color: '#FFFFFF',
+    letterSpacing: 3,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   logoSubtext: {
-    fontSize: 12,
-    color: '#66BB6A',
+    fontSize: 14,
+    color: '#E8F5E8',
     letterSpacing: 2,
     marginTop: 4,
+    opacity: 0.9,
   },
   contentContainer: {
-    flex: 1,
-    justifyContent: 'center',
+    paddingHorizontal: 26,
+    marginBottom: 30,
+  },
+  featuresContainer: {
+    marginBottom: 20,
   },
   welcomeText: {
     fontSize: 18,
-    color: '#4CAF50',
+    color: '#E8F5E8',
     fontWeight: '600',
     textAlign: 'center',
     marginBottom: 8,
+    opacity: 0.9,
   },
   title: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#FFFFFF',
     textAlign: 'center',
     marginBottom: 16,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
+    color: '#E8F5E8',
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 40,
+    opacity: 0.9,
+    paddingHorizontal: 8,
   },
-  stepsContainer: {
-    marginBottom: 20,
-  },
-  stepItem: {
+  featureItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    padding: 14,
+    borderRadius: 14,
+    marginBottom: 10,
+    marginHorizontal: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
-  stepIcon: {
-    fontSize: 32,
+  featureIcon: {
+    fontSize: 28,
     marginRight: 16,
+    width: 40,
+    textAlign: 'center',
   },
-  stepContent: {
+  featureContent: {
     flex: 1,
   },
-  stepTitle: {
-    fontSize: 18,
+  featureTitle: {
+    fontSize: 16,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#FFFFFF',
     marginBottom: 4,
   },
-  stepDescription: {
+  featureDescription: {
     fontSize: 14,
-    color: '#666',
+    color: '#E8F5E8',
+    opacity: 0.9,
+    lineHeight: 18,
   },
+
+  // Buttons Sizes
   buttonContainer: {
-    marginTop: 20,
+    paddingBottom: 30,
+    paddingHorizontal: 60,
+    marginTop: 5,
   },
   primaryButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#FFFFFF',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 12,
+    paddingHorizontal: 32,
+    borderRadius: 14,
     width: '100%',
-    marginBottom: 16,
-    shadowColor: '#4CAF50',
+    marginBottom: 14,
+    shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 4,
     },
     shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 6,
+    elevation: 8,
   },
   primaryButtonIcon: {
     fontSize: 20,
     marginRight: 12,
   },
   primaryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: '#2E7D32',
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   secondaryButton: {
     backgroundColor: 'transparent',
-    paddingVertical: 16,
+    paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 12,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   secondaryButtonText: {
-    color: '#888',
+    color: '#E8F5E8',
     fontSize: 16,
     fontWeight: '500',
+    opacity: 3,
   },
 });
 
