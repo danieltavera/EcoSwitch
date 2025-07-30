@@ -16,7 +16,7 @@ erDiagram
         varchar timezone
     }
 
-    %% Household Information
+    %% Household Information (HomeDataScreen)
     HOUSEHOLDS {
         uuid id PK
         uuid user_id FK
@@ -35,7 +35,7 @@ erDiagram
         timestamp updated_at
     }
 
-    %% Energy Consumption Tracking
+    %% Energy Consumption Tracking (BaseConsumptionScreen)
     ENERGY_CONSUMPTION {
         uuid id PK
         uuid user_id FK
@@ -223,7 +223,7 @@ erDiagram
         timestamp updated_at
     }
 
-    %% Analytics and Insights
+    %% Analytics and Insights (Calculo de ahorro y metrica)
     USER_ANALYTICS {
         uuid id PK
         uuid user_id FK
