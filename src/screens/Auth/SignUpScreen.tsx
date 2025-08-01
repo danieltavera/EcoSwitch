@@ -87,6 +87,8 @@ const SignUpScreen: React.FC = () => {
         contentContainerStyle={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        bounces={false}
+        automaticallyAdjustKeyboardInsets={true}
       >
         <View style={styles.container}>
           <View style={styles.logoContainer}>
@@ -188,13 +190,14 @@ const SignUpScreen: React.FC = () => {
 const styles = StyleSheet.create({
   scrollContainer: {
     flexGrow: 1,
-    justifyContent: 'center',
+    paddingBottom: 50, // Añadir padding inferior para mejor scroll
   },
   container: {
     paddingHorizontal: 32,
-    paddingTop: 40,
+    paddingTop: 60,
     paddingBottom: 40,
     alignItems: 'center',
+    minHeight: '100%', // Asegurar altura mínima
   },
   logoContainer: {
     alignItems: 'center',

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { HomeDataNavigationProp } from '../../types/navigation';
 
@@ -11,6 +11,8 @@ const HomeDataScreen: React.FC = () => {
     numberOfPeople: '',
     location: '',
   });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const homeTypes = [
     { id: 'apartment', label: 'Apartment', icon: '🏢' },
@@ -66,7 +68,10 @@ const HomeDataScreen: React.FC = () => {
     setHomeData(prev => ({ ...prev, homeType: type }));
   };
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
+    // Limpiar errores previos
+    setError(null);
+    
     // Validaciones básicas
     if (!homeData.homeType || !homeData.squareMeters || !homeData.numberOfPeople) {
       Alert.alert('Error', 'Please fill in all required fields');
@@ -85,8 +90,73 @@ const HomeDataScreen: React.FC = () => {
       return;
     }
 
-    console.log('Home Data:', homeData);
-    navigation.navigate('BaseConsumption');
+    setIsLoading(true);
+    
+    try {
+      // TODO: En una implementación real, obtener el user_id del contexto de autenticación
+      const user_id = 'eb5aab3b-508f-40ac-a1e5-0490f9b1aca0'; // Usar UUID válido existente para pruebas
+      
+      const requestData = {
+        user_id,
+        homeType: homeData.homeType,
+        squareMeters: squareMeters,
+        numberOfPeople: numberOfPeople,
+        location: homeData.location || null
+      };
+
+      console.log('Sending household data:', requestData);
+
+      // Configurar la URL de la API
+      const API_BASE_URL = __DEV__ 
+        ? 'http://10.0.0.21:3000'  // IP local para dispositivos físicos/emuladores
+        : 'https://your-production-api-url.com'; // Cambiar por tu URL de producción
+
+      const response = await fetch(`${API_BASE_URL}/api/households`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData),
+      });
+
+      const responseData = await response.json();
+
+      if (!response.ok) {
+        throw new Error(responseData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      console.log('Household data saved successfully:', responseData);
+      
+      // Mostrar mensaje de éxito
+      Alert.alert(
+        'Success!', 
+        'Your home information has been saved successfully.',
+        [{
+          text: 'Continue',
+          onPress: () => navigation.navigate('BaseConsumption')
+        }]
+      );
+
+    } catch (error) {
+      console.error('Error saving household data:', error);
+      
+      let errorMessage = 'Failed to save your home information. Please try again.';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('Network request failed') || error.message.includes('fetch')) {
+          errorMessage = 'Network error. Please check your internet connection and try again.';
+        } else if (error.message.includes('timeout')) {
+          errorMessage = 'Request timeout. Please try again.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      setError(errorMessage);
+      Alert.alert('Error', errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleBack = () => {
@@ -99,6 +169,8 @@ const HomeDataScreen: React.FC = () => {
         contentContainerStyle={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        bounces={false}
+        automaticallyAdjustKeyboardInsets={true}
       >
         <View style={styles.container}>
           <View style={styles.header}>
@@ -183,11 +255,30 @@ const HomeDataScreen: React.FC = () => {
                 placeholderTextColor="#888"
               />
             </View>
+
+            {error && (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>⚠️ {error}</Text>
+              </View>
+            )}
           </View>
 
-          <TouchableOpacity style={styles.continueButton} onPress={handleContinue}>
-            <Text style={styles.continueButtonText}>Continue</Text>
-            <Text style={styles.continueButtonIcon}>→</Text>
+          <TouchableOpacity 
+            style={[styles.continueButton, isLoading && styles.continueButtonDisabled]} 
+            onPress={handleContinue}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <ActivityIndicator size="small" color="#fff" style={{ marginRight: 8 }} />
+                <Text style={styles.continueButtonText}>Saving...</Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.continueButtonText}>Continue</Text>
+                <Text style={styles.continueButtonIcon}>→</Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -198,6 +289,7 @@ const HomeDataScreen: React.FC = () => {
 const styles = StyleSheet.create({
   scrollContainer: {
     flexGrow: 1,
+    paddingBottom: 30, // Añadir padding inferior
   },
   container: {
     flex: 1,
@@ -324,6 +416,11 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 6,
   },
+  continueButtonDisabled: {
+    backgroundColor: '#A5D6A7',
+    shadowOpacity: 0.1,
+    elevation: 2,
+  },
   continueButtonText: {
     color: '#fff',
     fontSize: 16,
@@ -334,6 +431,21 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  errorContainer: {
+    backgroundColor: '#FFEBEE',
+    borderWidth: 1,
+    borderColor: '#F44336',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  errorText: {
+    color: '#D32F2F',
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'center',
   },
 });
 

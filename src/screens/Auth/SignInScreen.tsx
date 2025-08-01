@@ -29,6 +29,8 @@ const SignInScreen: React.FC = () => {
         contentContainerStyle={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        bounces={false}
+        automaticallyAdjustKeyboardInsets={true}
       >
         <View style={styles.container}>
         <View style={styles.logoContainer}>
@@ -91,7 +93,7 @@ const SignInScreen: React.FC = () => {
 const styles = StyleSheet.create({
   scrollContainer: {
     flexGrow: 1,
-    justifyContent: 'center',
+    paddingBottom: 50, // Añadir padding inferior
   },
   container: {
     paddingHorizontal: 32,
