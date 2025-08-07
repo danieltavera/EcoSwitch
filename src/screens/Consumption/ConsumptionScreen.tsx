@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { ConsumptionNavigationProp } from '../../types/navigation';
 
 const ConsumptionScreen: React.FC = () => {
   const navigation = useNavigation<ConsumptionNavigationProp>();
+  const [isLoading, setIsLoading] = useState(false);
   const [consumptionData, setConsumptionData] = useState({
     period: 'current_month',
     electricityKwh: '',
@@ -53,7 +54,7 @@ const ConsumptionScreen: React.FC = () => {
     setConsumptionData(prev => ({ ...prev, period }));
   };
 
-  const handleSaveConsumption = () => {
+  const handleSaveConsumption = async () => {
     // Validaciones básicas
     if (!consumptionData.electricityKwh || !consumptionData.electricityCost) {
       Alert.alert('Error', 'Please fill in at least electricity consumption and cost');
@@ -90,36 +91,112 @@ const ConsumptionScreen: React.FC = () => {
       }
     }
 
-    console.log('Consumption Data:', consumptionData);
-    
-    Alert.alert(
-      'Consumption Saved!', 
-      'Your energy consumption has been recorded successfully.',
-      [
-        {
-          text: 'Add Another',
-          style: 'cancel',
-          onPress: () => {
-            // Limpiar formulario para nueva entrada
-            setConsumptionData({
-              period: 'current_month',
-              electricityKwh: '',
-              electricityCost: '',
-              gasUsage: '',
-              gasCost: '',
-              waterUsage: '',
-              waterCost: '',
-              notes: '',
-              date: new Date().toISOString().split('T')[0],
-            });
-          }
+    setIsLoading(true);
+
+    try {
+      // TODO: En una implementación real, obtener el user_id del contexto de autenticación
+      const user_id = 'eb5aab3b-508f-40ac-a1e5-0490f9b1aca0';
+
+      // Determinar el período personalizado según la selección
+      let customPeriod = undefined;
+      if (consumptionData.period === 'last_month') {
+        const lastMonth = new Date();
+        lastMonth.setMonth(lastMonth.getMonth() - 1);
+        const year = lastMonth.getFullYear();
+        const month = (lastMonth.getMonth() + 1).toString().padStart(2, '0');
+        customPeriod = `${year}-${month}`;
+      } else if (consumptionData.period === 'custom' && consumptionData.date) {
+        const date = new Date(consumptionData.date);
+        const year = date.getFullYear();
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        customPeriod = `${year}-${month}`;
+      }
+
+      // Preparar datos para la API (usando la misma estructura que el onboarding)
+      const requestData = {
+        user_id,
+        monthlyElectricBill: consumptionData.electricityCost,
+        monthlyGasBill: consumptionData.gasCost || null,
+        monthlyWaterBill: consumptionData.waterCost || null,
+        hasRenewableEnergy: false, // Se podría agregar esta opción al formulario más tarde
+        energyGoal: 'reduce_20', // Valor por defecto, se podría obtener del perfil del usuario
+        customPeriod: customPeriod
+      };
+
+      console.log('Sending consumption data to API:', requestData);
+
+      // Configurar la URL de la API
+      const API_BASE_URL = __DEV__ 
+        ? 'http://10.0.0.21:3000'  // IP local para dispositivos físicos/emuladores
+        : 'https://your-production-api-url.com'; // Cambiar por tu URL de producción
+
+      const response = await fetch(`${API_BASE_URL}/api/energy-consumption`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-        { 
-          text: 'Back to Dashboard', 
-          onPress: () => navigation.navigate('Dashboard')
+        body: JSON.stringify(requestData),
+      });
+
+      const responseData = await response.json();
+
+      if (!response.ok) {
+        throw new Error(responseData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      console.log('Consumption data saved successfully:', responseData);
+
+      // Mostrar mensaje de éxito
+      Alert.alert(
+        'Success!', 
+        'Your energy consumption has been saved successfully.',
+        [
+          {
+            text: 'Add Another',
+            style: 'cancel',
+            onPress: () => {
+              // Limpiar formulario para nueva entrada
+              setConsumptionData({
+                period: 'current_month',
+                electricityKwh: '',
+                electricityCost: '',
+                gasUsage: '',
+                gasCost: '',
+                waterUsage: '',
+                waterCost: '',
+                notes: '',
+                date: new Date().toISOString().split('T')[0],
+              });
+            }
+          },
+          { 
+            text: 'Back to Dashboard', 
+            onPress: () => navigation.navigate('Dashboard')
+          }
+        ]
+      );
+
+    } catch (error) {
+      console.error('Error saving consumption data:', error);
+      
+      let errorMessage = 'Failed to save your consumption data. Please try again.';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('Network request failed') || error.message.includes('fetch')) {
+          errorMessage = 'Network error. Please check your internet connection and try again.';
+        } else if (error.message.includes('timeout')) {
+          errorMessage = 'Request timeout. Please try again.';
+        } else if (error.message.includes('already exists')) {
+          errorMessage = 'Consumption data for this period already exists. Try updating it instead.';
+        } else {
+          errorMessage = error.message;
         }
-      ]
-    );
+      }
+      
+      Alert.alert('Error', errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleBack = () => {
@@ -190,6 +267,31 @@ const ConsumptionScreen: React.FC = () => {
               </TouchableOpacity>
             ))}
           </View>
+          
+          {/* Custom Date Input */}
+          {consumptionData.period === 'custom' && (
+            <View style={styles.customDateContainer}>
+              <Text style={styles.inputLabel}>Select Month and Year</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="YYYY-MM (e.g., 2025-07)"
+                value={consumptionData.date.substring(0, 7)} // Show YYYY-MM format
+                onChangeText={(value) => {
+                  // Format as YYYY-MM and extend to full date
+                  const parts = value.split('-');
+                  if (parts.length === 2 && parts[0].length === 4 && parts[1].length <= 2) {
+                    const fullDate = `${value}-01`; // Set to first day of month
+                    setConsumptionData(prev => ({ ...prev, date: fullDate }));
+                  }
+                }}
+                placeholderTextColor="#888"
+                keyboardType="numeric"
+              />
+              <Text style={styles.helpText}>
+                Enter the month and year for this consumption data
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Electricity Section */}
@@ -349,9 +451,22 @@ const ConsumptionScreen: React.FC = () => {
         </View>
 
         {/* Save Button */}
-        <TouchableOpacity style={styles.saveButton} onPress={handleSaveConsumption}>
-          <Text style={styles.saveButtonIcon}>💾</Text>
-          <Text style={styles.saveButtonText}>Save Consumption</Text>
+        <TouchableOpacity 
+          style={[styles.saveButton, isLoading && styles.saveButtonDisabled]} 
+          onPress={handleSaveConsumption}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <>
+              <ActivityIndicator size="small" color="#fff" style={{ marginRight: 12 }} />
+              <Text style={styles.saveButtonText}>Saving...</Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.saveButtonIcon}>💾</Text>
+              <Text style={styles.saveButtonText}>Save Consumption</Text>
+            </>
+          )}
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -461,6 +576,17 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   
+  // Custom Date
+  customDateContainer: {
+    marginTop: 16,
+  },
+  helpText: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  
   // Input Styles
   inputRow: {
     flexDirection: 'row',
@@ -548,6 +674,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 6,
+  },
+  saveButtonDisabled: {
+    backgroundColor: '#A5D6A7',
+    shadowOpacity: 0.1,
   },
   saveButtonIcon: {
     fontSize: 20,

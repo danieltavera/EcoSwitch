@@ -109,15 +109,26 @@ router.post('/', async (req, res) => {
     // Calcular estimación de kWh basada en el costo (promedio ~$0.12 por kWh)
     const estimatedKwh = Math.round(electricityBill / 0.12);
     
-    // Usar fecha actual para el período
-    const currentDate = new Date();
-    const currentYear = currentDate.getFullYear();
-    const currentMonth = currentDate.getMonth() + 1;
-    const period = `${currentYear}-${currentMonth.toString().padStart(2, '0')}`;
+    // Usar período personalizado si se proporciona, sino usar fecha actual
+    let period, billingStart, billingEnd;
     
-    // Definir inicio y fin del período de facturación (mes actual)
-    const billingStart = new Date(currentYear, currentMonth - 1, 1);
-    const billingEnd = new Date(currentYear, currentMonth, 0);
+    if (req.body.customPeriod) {
+      // Usar período personalizado (formato: "2025-07")
+      period = req.body.customPeriod;
+      const [year, month] = period.split('-');
+      billingStart = new Date(parseInt(year), parseInt(month) - 1, 1);
+      billingEnd = new Date(parseInt(year), parseInt(month), 0);
+    } else {
+      // Usar fecha actual para el período
+      const currentDate = new Date();
+      const currentYear = currentDate.getFullYear();
+      const currentMonth = currentDate.getMonth() + 1;
+      period = `${currentYear}-${currentMonth.toString().padStart(2, '0')}`;
+      
+      // Definir inicio y fin del período de facturación (mes actual)
+      billingStart = new Date(currentYear, currentMonth - 1, 1);
+      billingEnd = new Date(currentYear, currentMonth, 0);
+    }
 
     const values = [
       user_id,
@@ -130,7 +141,7 @@ router.post('/', async (req, res) => {
       period, // period
       billingStart, // billing_period_start
       billingEnd, // billing_period_end
-      'USD', // currency
+      'AUD', // currency
       true, // is_estimated (basado en cálculo de $0.12/kWh)
       `Energy goal: ${energyGoal}${hasRenewableEnergy ? ', Uses renewable energy' : ''}` // notes
     ];
@@ -357,6 +368,209 @@ router.put('/:id', async (req, res) => {
 
   } catch (error) {
     console.error('Error updating energy consumption:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// GET /api/energy-consumption/dashboard/:userId - Obtener datos para el dashboard
+router.get('/dashboard/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    console.log(`Getting dashboard data for user: ${userId}`);
+
+    // 1. Obtener información del household del usuario
+    const householdQuery = `
+      SELECT 
+        property_type,
+        square_meters,
+        occupants_count,
+        location_city,
+        location_country,
+        created_at
+      FROM households 
+      WHERE user_id = $1 
+      ORDER BY created_at DESC 
+      LIMIT 1
+    `;
+    
+    const householdResult = await pool.query(householdQuery, [userId]);
+    
+    if (householdResult.rows.length === 0) {
+      return res.status(404).json({ 
+        error: 'No household data found for this user' 
+      });
+    }
+    
+    const household = householdResult.rows[0];
+
+    // 2. Obtener consumo energético del mes actual
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth() + 1;
+    const currentPeriod = `${currentYear}-${currentMonth.toString().padStart(2, '0')}`;
+    
+    const currentMonthQuery = `
+      SELECT 
+        cost_amount,
+        gas_usage,
+        water_usage,
+        kwh_consumed,
+        notes,
+        billing_period_start,
+        billing_period_end,
+        logged_at
+      FROM energy_consumption 
+      WHERE user_id = $1 AND period = $2
+      ORDER BY logged_at DESC 
+      LIMIT 1
+    `;
+    
+    const currentMonthResult = await pool.query(currentMonthQuery, [userId, currentPeriod]);
+
+    // 3. Obtener el primer registro del usuario (baseline) para calcular progreso
+    const baselineQuery = `
+      SELECT 
+        cost_amount,
+        gas_usage,
+        water_usage,
+        kwh_consumed,
+        period,
+        logged_at
+      FROM energy_consumption 
+      WHERE user_id = $1
+      ORDER BY logged_at ASC 
+      LIMIT 1
+    `;
+    
+    const baselineResult = await pool.query(baselineQuery, [userId]);
+
+    // 4. Procesar datos del mes actual
+    let currentMonthData = {
+      electricity: 0,
+      gas: 0,
+      water: 0,
+      total: 0,
+      kwh: 0,
+      period: currentPeriod,
+      hasData: false
+    };
+
+    if (currentMonthResult.rows.length > 0) {
+      const current = currentMonthResult.rows[0];
+      currentMonthData = {
+        electricity: parseFloat(current.cost_amount) || 0,
+        gas: parseFloat(current.gas_usage) || 0,
+        water: parseFloat(current.water_usage) || 0,
+        total: (parseFloat(current.cost_amount) || 0) + 
+               (parseFloat(current.gas_usage) || 0) + 
+               (parseFloat(current.water_usage) || 0),
+        kwh: parseFloat(current.kwh_consumed) || 0,
+        period: currentPeriod,
+        hasData: true,
+        lastUpdated: current.logged_at
+      };
+    }
+
+    // 5. Calcular progreso vs baseline (primer registro del usuario)
+    let savings = {
+      percentage: 0,
+      amount: 0,
+      hasComparison: false,
+      comparisonType: 'none'
+    };
+
+    // Si el usuario tiene datos actuales
+    if (currentMonthData.hasData) {
+      // Si hay baseline (primer registro) disponible
+      if (baselineResult.rows.length > 0) {
+        const baseline = baselineResult.rows[0];
+        const baselineTotal = (parseFloat(baseline.cost_amount) || 0) + 
+                             (parseFloat(baseline.gas_usage) || 0) + 
+                             (parseFloat(baseline.water_usage) || 0);
+        
+        if (baselineTotal > 0) {
+          const difference = baselineTotal - currentMonthData.total;
+          const isFirstMonth = baseline.period === currentMonthData.period;
+          
+          savings = {
+            percentage: Math.round((difference / baselineTotal) * 100 * 10) / 10, // Redondear a 1 decimal
+            amount: Math.round(difference * 100) / 100, // Redondear a 2 decimales
+            hasComparison: true,
+            comparisonType: isFirstMonth ? 'first_month' : 'vs_baseline',
+            baselineTotal: baselineTotal,
+            baselinePeriod: baseline.period
+          };
+        }
+      }
+    }
+
+    // 6. Extraer información de la meta energética
+    let goal = {
+      type: 'not_set',
+      target: 0,
+      hasRenewableEnergy: false
+    };
+
+    if (currentMonthResult.rows.length > 0) {
+      const notes = currentMonthResult.rows[0].notes || '';
+      
+      // Extraer meta de las notas
+      if (notes.includes('reduce_10')) goal.type = 'reduce_10', goal.target = 10;
+      else if (notes.includes('reduce_20')) goal.type = 'reduce_20', goal.target = 20;
+      else if (notes.includes('reduce_30')) goal.type = 'reduce_30', goal.target = 30;
+      else if (notes.includes('carbon_neutral')) goal.type = 'carbon_neutral', goal.target = 100;
+      
+      // Verificar energía renovable
+      goal.hasRenewableEnergy = notes.includes('Uses renewable energy');
+    }
+
+    // 7. Generar saludo dinámico
+    const hour = currentDate.getHours();
+    let greeting = 'Good morning! 🌅';
+    if (hour >= 12 && hour < 18) greeting = 'Good afternoon! ☀️';
+    else if (hour >= 18) greeting = 'Good evening! 🌙';
+
+    // 8. Formatear ubicación
+    let location = 'Unknown';
+    if (household.location_city && household.location_country) {
+      location = `${household.location_city}, ${household.location_country}`;
+    } else if (household.location_city) {
+      location = household.location_city;
+    }
+
+    // 9. Construir respuesta
+    const dashboardData = {
+      user: {
+        greeting: greeting,
+        location: location
+      },
+      household: {
+        type: household.property_type,
+        area: parseFloat(household.square_meters) || 0,
+        occupants: parseInt(household.occupants_count) || 0,
+        location: location
+      },
+      currentMonth: currentMonthData,
+      savings: savings,
+      goal: goal,
+      streak: 0, // TODO: Implementar sistema de streak más adelante
+      lastActivity: currentMonthData.hasData ? currentMonthData.lastUpdated : null
+    };
+
+    console.log('Dashboard data prepared:', dashboardData);
+
+    res.json({
+      success: true,
+      message: 'Dashboard data retrieved successfully',
+      data: dashboardData
+    });
+
+  } catch (error) {
+    console.error('Error fetching dashboard data:', error);
     res.status(500).json({ 
       error: 'Internal server error',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
