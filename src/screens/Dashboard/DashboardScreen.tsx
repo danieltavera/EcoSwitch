@@ -231,6 +231,7 @@ const DashboardScreen: React.FC = () => {
           return `${targetText} • ${remaining.toFixed(1)}% more to reach your goal`;
         }
       } else {
+        
         return `${targetText} • Focus on reducing consumption`;
       }
     }
