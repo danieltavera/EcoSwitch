@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, Alert, ActivityIndicator } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { BaseConsumptionNavigationProp } from '../../types/navigation';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { BaseConsumptionNavigationProp, RouteProp } from '../../types/navigation';
 
 const BaseConsumptionScreen: React.FC = () => {
   const navigation = useNavigation<BaseConsumptionNavigationProp>();
+  const route = useRoute<RouteProp<'BaseConsumption'>>();
+  const { userId } = route.params || {};
   const [consumptionData, setConsumptionData] = useState({
     monthlyElectricBill: '',
     monthlyGasBill: '',
@@ -14,6 +16,24 @@ const BaseConsumptionScreen: React.FC = () => {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Check if userId is available
+  if (!userId) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#f8f9fa' }}>
+        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+          <Text style={styles.title}>Error</Text>
+          <Text style={styles.subtitle}>User ID not found. Please log in again.</Text>
+          <TouchableOpacity 
+            style={styles.finishButton}
+            onPress={() => navigation.navigate('Login')}
+          >
+            <Text style={styles.finishButtonText}>Go to Login</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   const energyGoals = [
     { id: 'reduce_10', label: 'Reduce 10%', icon: '🎯' },
@@ -109,8 +129,8 @@ const BaseConsumptionScreen: React.FC = () => {
     setIsLoading(true);
     
     try {
-      // TODO: En una implementación real, obtener el user_id del contexto de autenticación
-      const user_id = 'eb5aab3b-508f-40ac-a1e5-0490f9b1aca0'; // Usar UUID válido existente para pruebas
+      // Use the userId from navigation params
+      const user_id = userId;
       
       const requestData = {
         user_id,
@@ -152,7 +172,7 @@ const BaseConsumptionScreen: React.FC = () => {
           text: 'Get Started', 
           onPress: () => {
             console.log('Navigate to Dashboard');
-            navigation.navigate('Dashboard');
+            navigation.navigate('Dashboard', { userId });
           }
         }]
       );

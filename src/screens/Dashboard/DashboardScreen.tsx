@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, Image, ActivityIndicator, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation } from '@react-navigation/native';
-import { DashboardNavigationProp } from '../../types/navigation';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { DashboardNavigationProp, RouteProp } from '../../types/navigation';
 
 interface DashboardData {
   user: {
@@ -42,12 +42,14 @@ interface DashboardData {
 
 const DashboardScreen: React.FC = () => {
   const navigation = useNavigation<DashboardNavigationProp>();
+  const route = useRoute<RouteProp<'Dashboard'>>();
+  const { userId } = route.params || {};
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // TODO: En una implementación real, obtener el user_id del contexto de autenticación
-  const userId = 'eb5aab3b-508f-40ac-a1e5-0490f9b1aca0';
+  // If no userId is provided from route params, use fallback (for backward compatibility)
+  const effectiveUserId = userId || 'eb5aab3b-508f-40ac-a1e5-0490f9b1aca0';
 
   const handleLogConsumption = () => {
     console.log('Navigate to Consumption Form');
@@ -87,7 +89,7 @@ const DashboardScreen: React.FC = () => {
         ? 'http://10.0.0.21:3000'  // IP local para dispositivos físicos/emuladores
         : 'https://your-production-api-url.com'; // Cambiar por tu URL de producción
 
-      const response = await fetch(`${API_BASE_URL}/api/energy-consumption/dashboard/${userId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/energy-consumption/dashboard/${effectiveUserId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -105,6 +107,48 @@ const DashboardScreen: React.FC = () => {
 
     } catch (error) {
       console.error('Error loading dashboard data:', error);
+      
+      // Si no hay datos del setup (usuario hizo skip), mostrar estado vacío
+      if (error instanceof Error && (
+        error.message.includes('No data found') || 
+        error.message.includes('No household data found') ||
+        error.message.includes('household data found')
+      )) {
+        setDashboardData({
+          user: {
+            greeting: 'Hello',
+            location: 'Unknown location'
+          },
+          household: {
+            type: 'Not set',
+            area: 0,
+            occupants: 0,
+            location: 'Not specified'
+          },
+          currentMonth: {
+            electricity: 0,
+            gas: 0,
+            water: 0,
+            total: 0,
+            kwh: 0,
+            period: new Date().toISOString().slice(0, 7), // YYYY-MM format
+            hasData: false
+          },
+          savings: {
+            percentage: 0,
+            amount: 0,
+            hasComparison: false
+          },
+          goal: {
+            type: 'Not set',
+            target: 0,
+            hasRenewableEnergy: false
+          },
+          streak: 0
+        });
+        setError(null);
+        return;
+      }
       
       let errorMessage = 'Failed to load dashboard data. Please try again.';
       
@@ -153,15 +197,15 @@ const DashboardScreen: React.FC = () => {
       // Primer mes del usuario
       const targetReduction = goal.target;
       if (targetReduction > 0) {
-        return `Starting your journey! Target: ${targetReduction}% reduction`;
+        return `Target: ${targetReduction}% reduction`;
       }
-      return 'Your baseline month';
+      return 'Baseline month';
     } else if (savings.comparisonType === 'vs_baseline') {
       // Comparación con el primer mes
       if (isPositive) {
-        return `${percentageText} saved since you started!`;
+        return `${percentageText} saved!`;
       } else {
-        return `${percentageText} increase from your baseline`;
+        return `${percentageText} increase`;
       }
     } else {
       // Fallback para compatibilidad
@@ -247,7 +291,7 @@ const DashboardScreen: React.FC = () => {
           <Text style={styles.errorIcon}>📊</Text>
           <Text style={styles.errorTitle}>No data available</Text>
           <Text style={styles.errorMessage}>Complete your home setup to see your dashboard</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={() => navigation.navigate('HomeData')}>
+          <TouchableOpacity style={styles.retryButton} onPress={() => navigation.navigate('HomeData', { userId: effectiveUserId })}>
             <Text style={styles.retryButtonText}>Setup Home</Text>
           </TouchableOpacity>
         </View>
@@ -270,7 +314,10 @@ const DashboardScreen: React.FC = () => {
               <View>
                 <Text style={styles.greeting}>{dashboardData.user.greeting}</Text>
                 <Text style={styles.username}>
-                  {dashboardData.household.occupants}-person {dashboardData.household.type} • {dashboardData.household.area}m²
+                  {dashboardData.household.type === 'Not set' 
+                    ? 'Complete setup to see your home info' 
+                    : `${dashboardData.household.occupants}-person ${dashboardData.household.type} • ${dashboardData.household.area}m²`
+                  }
                 </Text>
               </View>
             </View>
@@ -293,7 +340,12 @@ const DashboardScreen: React.FC = () => {
             
             <View style={styles.totalCost}>
               <Text style={styles.totalLabel}>Total Cost</Text>
-              <Text style={styles.totalAmount}>${dashboardData.currentMonth.total.toFixed(2)}</Text>
+              <Text style={styles.totalAmount}>
+                {!dashboardData.currentMonth.hasData 
+                  ? 'Complete setup' 
+                  : `$${dashboardData.currentMonth.total.toFixed(2)}`
+                }
+              </Text>
             </View>
 
             <View style={styles.billsBreakdown}>
@@ -301,21 +353,36 @@ const DashboardScreen: React.FC = () => {
                 <Text style={styles.billIcon}>⚡</Text>
                 <View style={styles.billInfo}>
                   <Text style={styles.billType}>Electricity</Text>
-                  <Text style={styles.billAmount}>${dashboardData.currentMonth.electricity.toFixed(2)}</Text>
+                  <Text style={styles.billAmount}>
+                    {!dashboardData.currentMonth.hasData 
+                      ? 'No data' 
+                      : `$${dashboardData.currentMonth.electricity.toFixed(2)}`
+                    }
+                  </Text>
                 </View>
               </View>
               <View style={styles.billItem}>
                 <Text style={styles.billIcon}>🔥</Text>
                 <View style={styles.billInfo}>
                   <Text style={styles.billType}>Gas</Text>
-                  <Text style={styles.billAmount}>${dashboardData.currentMonth.gas.toFixed(2)}</Text>
+                  <Text style={styles.billAmount}>
+                    {!dashboardData.currentMonth.hasData 
+                      ? 'No data' 
+                      : `$${dashboardData.currentMonth.gas.toFixed(2)}`
+                    }
+                  </Text>
                 </View>
               </View>
               <View style={styles.billItem}>
                 <Text style={styles.billIcon}>💧</Text>
                 <View style={styles.billInfo}>
                   <Text style={styles.billType}>Water</Text>
-                  <Text style={styles.billAmount}>${dashboardData.currentMonth.water.toFixed(2)}</Text>
+                  <Text style={styles.billAmount}>
+                    {!dashboardData.currentMonth.hasData 
+                      ? 'No data' 
+                      : `$${dashboardData.currentMonth.water.toFixed(2)}`
+                    }
+                  </Text>
                 </View>
               </View>
             </View>
@@ -333,38 +400,67 @@ const DashboardScreen: React.FC = () => {
             <View style={styles.progressHeader}>
               <Text style={styles.progressTitle}>Goal Progress</Text>
               <Text style={styles.progressPercentage}>
-                {getProgressText(dashboardData.savings, dashboardData.goal)}
+                {dashboardData.goal.type === 'Not set' 
+                  ? 'No goal set' 
+                  : getProgressText(dashboardData.savings, dashboardData.goal)
+                }
               </Text>
             </View>
-            {dashboardData.savings.hasComparison && dashboardData.savings.comparisonType !== 'first_month' && (
-              <View style={styles.progressBar}>
-                <View style={[
-                  styles.progressFill, 
-                  { 
-                    width: `${Math.min(Math.abs(dashboardData.savings.percentage), 100)}%`,
-                    backgroundColor: dashboardData.savings.percentage >= 0 ? '#4CAF50' : '#F44336'
-                  }
-                ]} />
-              </View>
-            )}
+            
+            {/* Show journey message for first month */}
             {dashboardData.savings.comparisonType === 'first_month' && dashboardData.goal.target > 0 && (
-              <View style={styles.goalVisualization}>
-                <Text style={styles.goalVisualizationText}>
-                  Your baseline: ${dashboardData.currentMonth.total.toFixed(2)}
-                </Text>
-                <Text style={styles.goalVisualizationText}>
-                  Goal target: ${(dashboardData.currentMonth.total * (1 - dashboardData.goal.target / 100)).toFixed(2)}
-                </Text>
-                <View style={styles.goalProgressBar}>
-                  <View style={[styles.goalProgressFill, { width: '0%' }]} />
-                </View>
-                <Text style={styles.goalHelpText}>Start tracking your progress next month!</Text>
-              </View>
+              <Text style={styles.journeyMessage}>
+                🌱 Starting your energy-saving journey!
+              </Text>
             )}
-            <Text style={styles.progressSubtext}>
-              {getProgressSubtext(dashboardData.savings, dashboardData.goal)}
-              {dashboardData.streak > 0 && ` • ${dashboardData.streak} day streak! 🔥`}
-            </Text>
+            
+            {dashboardData.goal.type === 'Not set' ? (
+              <View style={styles.setupPrompt}>
+                <Text style={styles.setupPromptIcon}>🎯</Text>
+                <Text style={styles.setupPromptTitle}>Set Your Energy Goal</Text>
+                <Text style={styles.setupPromptText}>
+                  Complete your setup to set energy saving goals and track your progress
+                </Text>
+                <TouchableOpacity 
+                  style={styles.setupPromptButton} 
+                  onPress={() => navigation.navigate('HomeData', { userId: effectiveUserId })}
+                >
+                  <Text style={styles.setupPromptButtonText}>Complete Setup</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <>
+                {dashboardData.savings.hasComparison && dashboardData.savings.comparisonType !== 'first_month' && (
+                  <View style={styles.progressBar}>
+                    <View style={[
+                      styles.progressFill, 
+                      { 
+                        width: `${Math.min(Math.abs(dashboardData.savings.percentage), 100)}%`,
+                        backgroundColor: dashboardData.savings.percentage >= 0 ? '#4CAF50' : '#F44336'
+                      }
+                    ]} />
+                  </View>
+                )}
+                {dashboardData.savings.comparisonType === 'first_month' && dashboardData.goal.target > 0 && (
+                  <View style={styles.goalVisualization}>
+                    <Text style={styles.goalVisualizationText}>
+                      Your baseline: ${dashboardData.currentMonth.total.toFixed(2)}
+                    </Text>
+                    <Text style={styles.goalVisualizationText}>
+                      Goal target: ${(dashboardData.currentMonth.total * (1 - dashboardData.goal.target / 100)).toFixed(2)}
+                    </Text>
+                    <View style={styles.goalProgressBar}>
+                      <View style={[styles.goalProgressFill, { width: '0%' }]} />
+                    </View>
+                    <Text style={styles.goalHelpText}>Start tracking your progress next month!</Text>
+                  </View>
+                )}
+                <Text style={styles.progressSubtext}>
+                  {getProgressSubtext(dashboardData.savings, dashboardData.goal)}
+                  {dashboardData.streak > 0 && ` • ${dashboardData.streak} day streak! 🔥`}
+                </Text>
+              </>
+            )}
           </View>
 
           {/* Quick Actions */}
@@ -421,14 +517,26 @@ const DashboardScreen: React.FC = () => {
             )}
             
             <View style={styles.activityItem}>
-              <Text style={styles.activityIcon}>�</Text>
+              <Text style={styles.activityIcon}>
+                {dashboardData.household.type === 'Not set' ? '⚙️' : '🏠'}
+              </Text>
               <View style={styles.activityInfo}>
-                <Text style={styles.activityTitle}>Home Setup Completed</Text>
+                <Text style={styles.activityTitle}>
+                  {dashboardData.household.type === 'Not set' 
+                    ? 'Setup Pending' 
+                    : 'Home Setup Completed'
+                  }
+                </Text>
                 <Text style={styles.activitySubtitle}>
-                  {dashboardData.household.area}m² {dashboardData.household.type} configured
+                  {dashboardData.household.type === 'Not set' 
+                    ? 'Complete your home and energy setup'
+                    : `${dashboardData.household.area}m² ${dashboardData.household.type} configured`
+                  }
                 </Text>
               </View>
-              <Text style={styles.activityTime}>Setup</Text>
+              <Text style={styles.activityTime}>
+                {dashboardData.household.type === 'Not set' ? 'Pending' : 'Setup'}
+              </Text>
             </View>
           </View>
 
@@ -586,20 +694,27 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   progressHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: 12,
   },
   progressTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
+    marginBottom: 4,
   },
   progressPercentage: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 14,
+    fontWeight: '600',
     color: '#4CAF50',
+    textAlign: 'left',
+  },
+  journeyMessage: {
+    fontSize: 14,
+    color: '#4CAF50',
+    textAlign: 'center',
+    fontWeight: '500',
+    marginBottom: 8,
+    paddingHorizontal: 8,
   },
   progressBar: {
     height: 8,
@@ -844,6 +959,46 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '600',
     marginTop: 4,
+  },
+  
+  // Setup Prompt Styles
+  setupPrompt: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 20,
+    alignItems: 'center',
+    marginVertical: 12,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  setupPromptIcon: {
+    fontSize: 32,
+    marginBottom: 12,
+  },
+  setupPromptTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  setupPromptText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  setupPromptButton: {
+    backgroundColor: '#4CAF50',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  setupPromptButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
 });
 

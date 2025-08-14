@@ -171,7 +171,7 @@ const ConsumptionScreen: React.FC = () => {
           },
           { 
             text: 'Back to Dashboard', 
-            onPress: () => navigation.navigate('Dashboard')
+            onPress: () => navigation.navigate('Dashboard', { userId: undefined })
           }
         ]
       );

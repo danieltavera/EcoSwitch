@@ -56,22 +56,31 @@ const SignUpScreen: React.FC = () => {
       const data = await response.json();
 
       if (response.ok) {
+        console.log('User registration response:', data);
+        const newUserId = data.user?.id || data.id || data.userId;
+        
+        if (!newUserId) {
+          console.error('No user ID received from registration:', data);
+          Alert.alert('Error', 'Registration successful but no user ID received. Please try logging in.');
+          return;
+        }
+
         Alert.alert(
-          'Éxito', 
-          'Usuario registrado exitosamente',
+          'Success', 
+          'User successfully registered',
           [
             {
               text: 'OK',
-              onPress: () => navigation.navigate('HomeData')
+              onPress: () => navigation.navigate('WelcomeSetup', { userId: newUserId })
             }
           ]
         );
       } else {
-        Alert.alert('Error', data.error || 'Error al registrar usuario');
+        Alert.alert('Error', data.error || 'Error registering user');
       }
     } catch (error) {
-      console.error('Error de registro:', error);
-      Alert.alert('Error', 'Error de conexión. Verifica que el servidor esté ejecutándose.');
+      console.error('Registration error:', error);
+      Alert.alert('Error', 'Connection error. Please check if the server is running.');
     } finally {
       setIsLoading(false);
     }

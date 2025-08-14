@@ -6,10 +6,12 @@ export type RootStackParamList = {
   Login: undefined;
   SignIn: undefined;
   SignUp: undefined;
+  WelcomeSetup: { userId?: string };
+  WelcomeDashboard: { userId?: string };
   InitialSetup: undefined;
-  HomeData: undefined;
-  BaseConsumption: undefined;
-  Dashboard: undefined;
+  HomeData: { userId: string };
+  BaseConsumption: { userId: string };
+  Dashboard: { userId?: string };
   Consumption: undefined;
   Profile: undefined;
   Challenges: undefined;
@@ -32,6 +34,8 @@ export type RouteProp<T extends keyof RootStackParamList> = NavigationRouteProp<
 export type LoginNavigationProp = NavigationProp<'Login'>;
 export type SignInNavigationProp = NavigationProp<'SignIn'>;
 export type SignUpNavigationProp = NavigationProp<'SignUp'>;
+export type WelcomeSetupNavigationProp = NavigationProp<'WelcomeSetup'>;
+export type WelcomeDashboardNavigationProp = NavigationProp<'WelcomeDashboard'>;
 export type InitialSetupNavigationProp = NavigationProp<'InitialSetup'>;
 export type HomeDataNavigationProp = NavigationProp<'HomeData'>;
 export type BaseConsumptionNavigationProp = NavigationProp<'BaseConsumption'>;

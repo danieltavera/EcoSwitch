@@ -12,7 +12,9 @@ const SignInScreen: React.FC = () => {
     console.log('Sign In:', email, password);
     // Aquí irá la lógica de autenticación
     // Por ahora simularemos login exitoso navegando al dashboard
-    navigation.navigate('Dashboard');
+    // TODO: Implement proper authentication and get userId from response
+    // For now, navigate with undefined userId (Dashboard will use fallback)
+    navigation.navigate('Dashboard', { userId: undefined });
   };
 
   const handleForgotPassword = () => {

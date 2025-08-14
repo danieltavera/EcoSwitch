@@ -4,6 +4,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import LoginScreen from '../screens/Auth/LoginScreen';
 import SignInScreen from '../screens/Auth/SignInScreen';
 import SignUpScreen from '../screens/Auth/SignUpScreen';
+import WelcomeSetupScreen from '../screens/Onboarding/WelcomeSetupScreen';
+import WelcomeDashboardScreen from '../screens/Onboarding/WelcomeDashboardScreen';
 import InitialSetupScreen from '../screens/Onboarding/InitialSetupScreen';
 import HomeDataScreen from '../screens/Onboarding/HomeDataScreen';
 import BaseConsumptionScreen from '../screens/Onboarding/BaseConsumptionScreen';
@@ -37,6 +39,16 @@ const AppNavigator = () => (
       <Stack.Screen
         name="SignUp"
         component={SignUpScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="WelcomeSetup"
+        component={WelcomeSetupScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="WelcomeDashboard"
+        component={WelcomeDashboardScreen}
         options={{ headerShown: false }}
       />
       <Stack.Screen

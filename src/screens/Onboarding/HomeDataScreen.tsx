@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, Alert, ActivityIndicator } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { HomeDataNavigationProp } from '../../types/navigation';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, Alert, ActivityIndicator, Modal } from 'react-native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { HomeDataNavigationProp, RouteProp } from '../../types/navigation';
 
 const HomeDataScreen: React.FC = () => {
   const navigation = useNavigation<HomeDataNavigationProp>();
+  const route = useRoute<RouteProp<'HomeData'>>();
+  const { userId } = route.params || {};
   const [homeData, setHomeData] = useState({
     homeType: '',
     squareMeters: '',
@@ -13,6 +15,25 @@ const HomeDataScreen: React.FC = () => {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showTooltip, setShowTooltip] = useState<string | null>(null);
+
+  // Check if userId is available
+  if (!userId) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#f8f9fa' }}>
+        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+          <Text style={styles.title}>Error</Text>
+          <Text style={styles.subtitle}>User ID not found. Please log in again.</Text>
+          <TouchableOpacity 
+            style={styles.continueButton}
+            onPress={() => navigation.navigate('Login')}
+          >
+            <Text style={styles.continueButtonText}>Go to Login</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   const homeTypes = [
     { id: 'apartment', label: 'Apartment', icon: '🏢' },
@@ -68,6 +89,31 @@ const HomeDataScreen: React.FC = () => {
     setHomeData(prev => ({ ...prev, homeType: type }));
   };
 
+  const showTooltipInfo = (field: string) => {
+    setShowTooltip(field);
+  };
+
+  const hideTooltip = () => {
+    setShowTooltip(null);
+  };
+
+  const getTooltipMessage = (field: string) => {
+    switch (field) {
+      case 'area':
+        return {
+          title: 'Why do we need your home area?',
+          message: 'Your home size helps us calculate accurate energy consumption estimates. You can find this info in rental agreements, property documents, or measure the main living spaces (length × width).'
+        };
+      case 'people':
+        return {
+          title: 'Why do we need the number of people?',
+          message: 'More people typically means higher energy usage. This helps us provide personalized recommendations and compare your usage with similar households.'
+        };
+      default:
+        return { title: '', message: '' };
+    }
+  };
+
   const handleContinue = async () => {
     // Limpiar errores previos
     setError(null);
@@ -93,23 +139,30 @@ const HomeDataScreen: React.FC = () => {
     setIsLoading(true);
     
     try {
-      // TODO: En una implementación real, obtener el user_id del contexto de autenticación
-      const user_id = 'eb5aab3b-508f-40ac-a1e5-0490f9b1aca0'; // Usar UUID válido existente para pruebas
-      
-      const requestData = {
-        user_id,
-        homeType: homeData.homeType,
-        squareMeters: squareMeters,
-        numberOfPeople: numberOfPeople,
-        location: homeData.location || null
-      };
-
-      console.log('Sending household data:', requestData);
-
       // Configurar la URL de la API
       const API_BASE_URL = __DEV__ 
         ? 'http://10.0.0.21:3000'  // IP local para dispositivos físicos/emuladores
         : 'https://your-production-api-url.com'; // Cambiar por tu URL de producción
+
+      // Usar el user_id real que viene de los parámetros de navegación
+      const user_id = userId;
+      
+      console.log('Using real user_id from navigation params:', user_id);
+      
+      if (!user_id || user_id.trim() === '') {
+        throw new Error('User ID is missing. Please log in again.');
+      }
+      
+      const requestData = {
+        user_id: user_id.trim(),
+        homeType: homeData.homeType.trim(),
+        squareMeters: squareMeters,
+        numberOfPeople: numberOfPeople,
+        location: homeData.location ? homeData.location.trim() : null
+      };
+
+      console.log('Sending household data:', requestData);
+      console.log('API URL:', `${API_BASE_URL}/api/households`);
 
       const response = await fetch(`${API_BASE_URL}/api/households`, {
         method: 'POST',
@@ -119,10 +172,15 @@ const HomeDataScreen: React.FC = () => {
         body: JSON.stringify(requestData),
       });
 
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
+
       const responseData = await response.json();
+      console.log('Response data:', responseData);
 
       if (!response.ok) {
-        throw new Error(responseData.error || `HTTP error! status: ${response.status}`);
+        console.error('Server returned error:', response.status, responseData);
+        throw new Error(responseData.error || responseData.message || `HTTP error! status: ${response.status}`);
       }
 
       console.log('Household data saved successfully:', responseData);
@@ -133,12 +191,17 @@ const HomeDataScreen: React.FC = () => {
         'Your home information has been saved successfully.',
         [{
           text: 'Continue',
-          onPress: () => navigation.navigate('BaseConsumption')
+          onPress: () => navigation.navigate('BaseConsumption', { userId: user_id })
         }]
       );
 
     } catch (error) {
       console.error('Error saving household data:', error);
+      console.error('Error details:', {
+        name: error instanceof Error ? error.name : 'Unknown',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : 'No stack trace'
+      });
       
       let errorMessage = 'Failed to save your home information. Please try again.';
       
@@ -147,8 +210,14 @@ const HomeDataScreen: React.FC = () => {
           errorMessage = 'Network error. Please check your internet connection and try again.';
         } else if (error.message.includes('timeout')) {
           errorMessage = 'Request timeout. Please try again.';
+        } else if (error.message.includes('Internal server error')) {
+          errorMessage = 'Server error. The server is having issues. Please try again in a moment.';
+        } else if (error.message.includes('404')) {
+          errorMessage = 'API endpoint not found. Please check if the server is running.';
+        } else if (error.message.includes('500')) {
+          errorMessage = 'Server internal error. Please try again later.';
         } else {
-          errorMessage = error.message;
+          errorMessage = `Server error: ${error.message}`;
         }
       }
       
@@ -214,7 +283,15 @@ const HomeDataScreen: React.FC = () => {
             <Text style={styles.sectionTitle}>Home Details</Text>
             
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Area (square meters) *</Text>
+              <View style={styles.labelContainer}>
+                <Text style={styles.inputLabel}>Area (square meters) </Text>
+                <TouchableOpacity 
+                  style={styles.tooltipButton}
+                  onPress={() => showTooltipInfo('area')}
+                >
+                  <Text style={styles.tooltipIcon}>?</Text>
+                </TouchableOpacity>
+              </View>
               <TextInput
                 style={styles.input}
                 placeholder="e.g., 85.5"
@@ -234,7 +311,15 @@ const HomeDataScreen: React.FC = () => {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Number of people living here *</Text>
+              <View style={styles.labelContainer}>
+                <Text style={styles.inputLabel}>Number of people living here </Text>
+                <TouchableOpacity 
+                  style={styles.tooltipButton}
+                  onPress={() => showTooltipInfo('people')}
+                >
+                  <Text style={styles.tooltipIcon}>?</Text>
+                </TouchableOpacity>
+              </View>
               <TextInput
                 style={styles.input}
                 placeholder="e.g., 3"
@@ -282,6 +367,32 @@ const HomeDataScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Tooltip Modal */}
+      <Modal
+        visible={showTooltip !== null}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={hideTooltip}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1} 
+          onPress={hideTooltip}
+        >
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>
+              {showTooltip ? getTooltipMessage(showTooltip).title : ''}
+            </Text>
+            <Text style={styles.modalText}>
+              {showTooltip ? getTooltipMessage(showTooltip).message : ''}
+            </Text>
+            <TouchableOpacity style={styles.modalButton} onPress={hideTooltip}>
+              <Text style={styles.modalButtonText}>Got it!</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -446,6 +557,78 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     textAlign: 'center',
+  },
+
+  // Tooltip Styles
+  labelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  tooltipButton: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#4CAF50',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 4,
+    marginTop: -8, // Sube 2 puntos
+  },
+  tooltipIcon: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    maxWidth: 320,
+    width: '100%',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#2E7D32',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  modalText: {
+    fontSize: 14,
+    color: '#333',
+    lineHeight: 20,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  modalButton: {
+    backgroundColor: '#4CAF50',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    alignSelf: 'center',
+  },
+  modalButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
 });
 
