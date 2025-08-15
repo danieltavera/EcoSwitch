@@ -171,8 +171,12 @@ const BaseConsumptionScreen: React.FC = () => {
         [{ 
           text: 'Get Started', 
           onPress: () => {
-            console.log('Navigate to Dashboard');
-            navigation.navigate('Dashboard', { userId });
+            console.log('Navigate to Dashboard - Resetting navigation stack');
+            // Reset navigation stack to prevent going back to onboarding
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'Dashboard', params: { userId } }],
+            });
           }
         }]
       );

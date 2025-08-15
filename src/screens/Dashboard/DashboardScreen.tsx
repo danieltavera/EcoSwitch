@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, Image, ActivityIndicator, Alert } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, Image, ActivityIndicator, Alert, BackHandler } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { DashboardNavigationProp, RouteProp } from '../../types/navigation';
+import NotificationBadge from '../../components/NotificationBadge';
+import { NotificationService } from '../../services/notificationService';
+import { useAuth } from '../../context/AuthContext';
 
 interface DashboardData {
   user: {
@@ -43,13 +46,15 @@ interface DashboardData {
 const DashboardScreen: React.FC = () => {
   const navigation = useNavigation<DashboardNavigationProp>();
   const route = useRoute<RouteProp<'Dashboard'>>();
+  const { user, logout } = useAuth();
   const { userId } = route.params || {};
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
 
-  // If no userId is provided from route params, use fallback (for backward compatibility)
-  const effectiveUserId = userId || 'eb5aab3b-508f-40ac-a1e5-0490f9b1aca0';
+  // Use userId from auth context if available, otherwise fallback to route params or hardcoded value
+  const effectiveUserId = user?.id || userId || 'eb5aab3b-508f-40ac-a1e5-0490f9b1aca0';
 
   const handleLogConsumption = () => {
     console.log('Navigate to Consumption Form');
@@ -74,8 +79,19 @@ const DashboardScreen: React.FC = () => {
     navigation.navigate('Profile');
   };
 
-  const handleLogout = () => {
-    navigation.navigate('Login');
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigation.navigate('Login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Even if logout fails, navigate to login
+      navigation.navigate('Login');
+    }
+  };
+
+  const handleNotifications = () => {
+    navigation.navigate('Notifications', { userId: effectiveUserId });
   };
 
   // Función para cargar datos del dashboard
@@ -168,10 +184,44 @@ const DashboardScreen: React.FC = () => {
     }
   };
 
+  // Función para cargar el contador de notificaciones no leídas
+  const loadUnreadCount = async () => {
+    try {
+      const unreadCount = await NotificationService.getUnreadCount();
+      setUnreadCount(unreadCount);
+    } catch (error) {
+      console.error('Error loading unread count:', error);
+      // No mostramos error para esto, es funcionalidad secundaria
+    }
+  };
+
   // Cargar datos al montar el componente
   useEffect(() => {
     loadDashboardData();
+    loadUnreadCount();
   }, []);
+
+  // Prevent back navigation from Dashboard
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        // Prevent hardware back button on Android from going back to onboarding
+        // Show exit app confirmation instead
+        Alert.alert(
+          'Exit App',
+          'Are you sure you want to exit EcoSwitch?',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Exit', style: 'destructive', onPress: () => BackHandler.exitApp() }
+          ]
+        );
+        return true; // Prevent default back action
+      };
+
+      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => subscription?.remove();
+    }, [])
+  );
 
   // Función para obtener el texto de la meta
   const getGoalText = (goalType: string, target: number) => {
@@ -322,8 +372,9 @@ const DashboardScreen: React.FC = () => {
                 </Text>
               </View>
             </View>
-            <TouchableOpacity style={styles.notificationButton}>
+            <TouchableOpacity style={styles.notificationButton} onPress={handleNotifications}>
               <Text style={styles.notificationIcon}>🔔</Text>
+              <NotificationBadge count={unreadCount} />
             </TouchableOpacity>
           </View>
 
@@ -611,6 +662,22 @@ const styles = StyleSheet.create({
   },
   notificationIcon: {
     fontSize: 20,
+  },
+  badgeContainer: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    backgroundColor: '#F44336',
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  badgeCount: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   
   // Overview Card

@@ -6,6 +6,8 @@ export type RootStackParamList = {
   Login: undefined;
   SignIn: undefined;
   SignUp: undefined;
+  ForgotPassword: undefined;
+  ResetPassword: { token: string };
   WelcomeSetup: { userId?: string };
   WelcomeDashboard: { userId?: string };
   InitialSetup: undefined;
@@ -16,6 +18,7 @@ export type RootStackParamList = {
   Profile: undefined;
   Challenges: undefined;
   Education: undefined;
+  Notifications: { userId: string };
 };
 
 // Tipos para navigation prop
@@ -34,6 +37,8 @@ export type RouteProp<T extends keyof RootStackParamList> = NavigationRouteProp<
 export type LoginNavigationProp = NavigationProp<'Login'>;
 export type SignInNavigationProp = NavigationProp<'SignIn'>;
 export type SignUpNavigationProp = NavigationProp<'SignUp'>;
+export type ForgotPasswordNavigationProp = NavigationProp<'ForgotPassword'>;
+export type ResetPasswordNavigationProp = NavigationProp<'ResetPassword'>;
 export type WelcomeSetupNavigationProp = NavigationProp<'WelcomeSetup'>;
 export type WelcomeDashboardNavigationProp = NavigationProp<'WelcomeDashboard'>;
 export type InitialSetupNavigationProp = NavigationProp<'InitialSetup'>;
@@ -44,3 +49,4 @@ export type ConsumptionNavigationProp = NavigationProp<'Consumption'>;
 export type ProfileNavigationProp = NavigationProp<'Profile'>;
 export type ChallengesNavigationProp = NavigationProp<'Challenges'>;
 export type EducationNavigationProp = NavigationProp<'Education'>;
+export type NotificationNavigationProp = NavigationProp<'Notifications'>;

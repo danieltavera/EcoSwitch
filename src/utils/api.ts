@@ -111,9 +111,10 @@ export const registerApi = async (userData: {
   return apiRequest('/api/auth/register', {
     method: 'POST',
     body: JSON.stringify({
-      name: `${userData.firstName} ${userData.lastName}`,
       email: userData.email,
       password: userData.password,
+      firstName: userData.firstName,
+      lastName: userData.lastName,
       phone: userData.phone,
     }),
     requiresAuth: false,
@@ -125,6 +126,15 @@ export const loginApi = async (email: string, password: string) => {
   return apiRequest('/api/auth/login', {
     method: 'POST',
     body: JSON.stringify({ email, password }),
+    requiresAuth: false,
+  });
+};
+
+// Función específica para forgot password
+export const forgotPasswordApi = async (email: string) => {
+  return apiRequest('/api/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
     requiresAuth: false,
   });
 };

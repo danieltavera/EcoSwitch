@@ -1,24 +1,97 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, Image } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, Image, Alert, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { SignInNavigationProp } from '../../types/navigation';
+import { useAuth } from '../../context/AuthContext';
 
 const SignInScreen: React.FC = () => {
   const navigation = useNavigation<SignInNavigationProp>();
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
 
-  const handleSignIn = () => {
-    console.log('Sign In:', email, password);
-    // Aquí irá la lógica de autenticación
-    // Por ahora simularemos login exitoso navegando al dashboard
-    // TODO: Implement proper authentication and get userId from response
-    // For now, navigate with undefined userId (Dashboard will use fallback)
-    navigation.navigate('Dashboard', { userId: undefined });
+  const validateForm = () => {
+    let isValid = true;
+    
+    // Reset previous errors
+    setEmailError('');
+    setPasswordError('');
+    
+    // Validate email
+    if (!email.trim()) {
+      setEmailError('Email is required');
+      isValid = false;
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setEmailError('Please enter a valid email address');
+      isValid = false;
+    }
+    
+    // Validate password
+    if (!password.trim()) {
+      setPasswordError('Password is required');
+      isValid = false;
+    }
+    
+    return isValid;
+  };
+
+  const handleSignIn = async () => {
+    if (!validateForm()) {
+      return;
+    }
+
+    setIsLoading(true);
+    
+    try {
+      await login(email.trim().toLowerCase(), password);
+      
+      // Login successful - get user data from auth context
+      Alert.alert(
+        'Welcome!',
+        'Sign in successful',
+        [
+          {
+            text: 'Continue',
+            onPress: () => {
+              // Reset navigation stack and navigate to dashboard
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Dashboard', params: { userId: undefined } }],
+              });
+            }
+          }
+        ]
+      );
+      
+    } catch (error) {
+      console.error('Sign in error:', error);
+      
+      let errorMessage = 'An error occurred during sign in. Please try again.';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('Credenciales inválidas') || 
+            error.message.includes('Invalid credentials') ||
+            error.message.includes('401')) {
+          errorMessage = 'Invalid email or password. Please check your credentials and try again.';
+        } else if (error.message.includes('Network') || 
+                   error.message.includes('fetch')) {
+          errorMessage = 'Network error. Please check your internet connection.';
+        } else if (error.message.includes('timeout')) {
+          errorMessage = 'Request timeout. Please try again.';
+        }
+      }
+      
+      Alert.alert('Sign In Failed', errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleForgotPassword = () => {
-    console.log('Forgot password');
+    navigation.navigate('ForgotPassword');
   };
 
   const handleSignUp = () => {
@@ -49,31 +122,52 @@ const SignInScreen: React.FC = () => {
         
         <View style={styles.inputContainer}>
           <TextInput
-            style={styles.input}
+            style={[styles.input, emailError ? styles.inputError : null]}
             placeholder="Email Address"
             value={email}
-            onChangeText={setEmail}
+            onChangeText={(text) => {
+              setEmail(text);
+              if (emailError) setEmailError(''); // Clear error when user types
+            }}
             keyboardType="email-address"
             autoCapitalize="none"
             placeholderTextColor="#888"
+            editable={!isLoading}
           />
+          {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
+          
           <TextInput
-            style={styles.input}
+            style={[styles.input, passwordError ? styles.inputError : null]}
             placeholder="Password"
             value={password}
-            onChangeText={setPassword}
+            onChangeText={(text) => {
+              setPassword(text);
+              if (passwordError) setPasswordError(''); // Clear error when user types
+            }}
             secureTextEntry
             placeholderTextColor="#888"
+            editable={!isLoading}
           />
+          {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
         </View>
 
         <TouchableOpacity style={styles.forgotPassword} onPress={handleForgotPassword}>
           <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.primaryButton} onPress={handleSignIn}>
-          <Text style={styles.primaryButtonIcon}>🔑</Text>
-          <Text style={styles.primaryButtonText}>Sign In</Text>
+        <TouchableOpacity 
+          style={[styles.primaryButton, isLoading && styles.primaryButtonDisabled]} 
+          onPress={handleSignIn}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <ActivityIndicator size="small" color="#fff" style={{ marginRight: 12 }} />
+          ) : (
+            <Text style={styles.primaryButtonIcon}>🔑</Text>
+          )}
+          <Text style={styles.primaryButtonText}>
+            {isLoading ? 'Signing In...' : 'Sign In'}
+          </Text>
         </TouchableOpacity>
         
         <View style={styles.dividerContainer}>
@@ -210,6 +304,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#2E7D32',
     fontWeight: 'bold',
+  },
+  inputError: {
+    borderColor: '#F44336',
+    borderWidth: 2,
+  },
+  errorText: {
+    color: '#F44336',
+    fontSize: 14,
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+  primaryButtonDisabled: {
+    backgroundColor: '#A5D6A7',
+    shadowOpacity: 0.1,
   },
 });
 

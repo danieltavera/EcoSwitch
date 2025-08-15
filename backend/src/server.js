@@ -8,6 +8,7 @@ require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 const authRoutes = require('./routes/auth');
 const householdsRoutes = require('./routes/households');
 const energyConsumptionRoutes = require('./routes/energy-consumption');
+const notificationsRoutes = require('./routes/notifications');
 
 const app = express();
 const PORT = process.env.API_PORT || 3000;
@@ -47,6 +48,7 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/households', householdsRoutes);
 app.use('/api/energy-consumption', energyConsumptionRoutes);
+app.use('/api/notifications', notificationsRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

@@ -7,9 +7,11 @@ const USER_KEY = 'user_data';
 
 interface User {
   id: string;
-  name: string;
   email: string;
+  firstName: string;
+  lastName: string;
   phone?: string;
+  isActive: boolean;
 }
 
 interface AuthContextType {

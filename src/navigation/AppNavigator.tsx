@@ -4,6 +4,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import LoginScreen from '../screens/Auth/LoginScreen';
 import SignInScreen from '../screens/Auth/SignInScreen';
 import SignUpScreen from '../screens/Auth/SignUpScreen';
+import ForgotPasswordScreen from '../screens/Auth/ForgotPasswordScreen';
+import ResetPasswordScreen from '../screens/Auth/ResetPasswordScreen';
 import WelcomeSetupScreen from '../screens/Onboarding/WelcomeSetupScreen';
 import WelcomeDashboardScreen from '../screens/Onboarding/WelcomeDashboardScreen';
 import InitialSetupScreen from '../screens/Onboarding/InitialSetupScreen';
@@ -14,6 +16,7 @@ import ConsumptionScreen from '../screens/Consumption/ConsumptionScreen';
 import ProfileScreen from '../screens/Profile/ProfileScreen';
 import ChallengesScreen from '../screens/Challenges/ChallengesScreen';
 import EducationScreen from '../screens/Education/EducationScreen';
+import NotificationScreen from '../screens/Notifications/NotificationScreen';
 import { RootStackParamList } from '../types/navigation';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -42,6 +45,16 @@ const AppNavigator = () => (
         options={{ headerShown: false }}
       />
       <Stack.Screen
+        name="ForgotPassword"
+        component={ForgotPasswordScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="ResetPassword"
+        component={ResetPasswordScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
         name="WelcomeSetup"
         component={WelcomeSetupScreen}
         options={{ headerShown: false }}
@@ -64,7 +77,10 @@ const AppNavigator = () => (
       <Stack.Screen
         name="Dashboard"
         component={DashboardScreen}
-        options={{ headerShown: false }}
+        options={{ 
+          headerShown: false,
+          gestureEnabled: false  // Disable swipe back gesture
+        }}
       />
       <Stack.Screen
         name="Consumption"
@@ -84,6 +100,11 @@ const AppNavigator = () => (
       <Stack.Screen
         name="Education"
         component={EducationScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Notifications"
+        component={NotificationScreen}
         options={{ headerShown: false }}
       />
     </Stack.Navigator>
