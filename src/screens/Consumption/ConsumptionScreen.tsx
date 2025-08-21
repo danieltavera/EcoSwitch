@@ -48,15 +48,24 @@ const ConsumptionScreen: React.FC = () => {
   };
 
   const handleSaveConsumption = async () => {
-    // Validaciones básicas
-    if (!consumptionData.electricityCost) {
+    console.log('=== STARTING SAVE PROCESS ===');
+    console.log('Current consumptionData state:', JSON.stringify(consumptionData, null, 2));
+
+    // Validaciones básicas - mejoradas
+    if (!consumptionData.electricityCost || consumptionData.electricityCost.trim() === '') {
+      console.log('VALIDATION FAILED: electricityCost is empty');
       Alert.alert('Error', 'Please fill in electricity cost');
       return;
     }
 
-    const electricityCost = parseFloat(consumptionData.electricityCost);
+    const electricityCostValue = consumptionData.electricityCost.trim();
+    console.log('Trimmed electricityCost:', JSON.stringify(electricityCostValue));
+
+    const electricityCost = parseFloat(electricityCostValue);
+    console.log('Parsed electricityCost:', electricityCost);
 
     if (isNaN(electricityCost) || electricityCost <= 0) {
+      console.log('VALIDATION FAILED: electricityCost is invalid number');
       Alert.alert('Error', 'Please enter a valid electricity cost');
       return;
     }
@@ -81,8 +90,28 @@ const ConsumptionScreen: React.FC = () => {
     setIsLoading(true);
 
     try {
-      // TODO: En una implementación real, obtener el user_id del contexto de autenticación
-      const user_id = 'eb5aab3b-508f-40ac-a1e5-0490f9b1aca0';
+      // Get real user from database instead of hardcoded ID
+      let user_id = null;
+      
+      try {
+        const API_BASE_URL = __DEV__ 
+          ? 'http://10.0.0.21:3000'
+          : 'https://your-production-api-url.com';
+          
+        const userResponse = await fetch(`${API_BASE_URL}/api/energy-consumption/users/all`);
+        const userData = await userResponse.json();
+        
+        if (userData.success && userData.data.length > 0) {
+          user_id = userData.data[0].id; // Use first available user
+          console.log('Using real user_id from database:', user_id);
+        } else {
+          throw new Error('No users found in database');
+        }
+      } catch (userError) {
+        console.error('Error fetching user from database:', userError);
+        Alert.alert('Error', 'Could not connect to user database. Please try again.');
+        return;
+      }
 
       // Determinar el período personalizado según la selección
       let customPeriod = undefined;
@@ -94,25 +123,50 @@ const ConsumptionScreen: React.FC = () => {
         customPeriod = new Date().toISOString().split('T')[0];
       }
 
-      // Preparar datos para la API (usando la misma estructura que el onboarding)
+      // Debug: Log raw consumption data
+      console.log('=== DEBUG: RAW CONSUMPTION DATA ===');
+      console.log('Full consumptionData:', JSON.stringify(consumptionData, null, 2));
+      console.log('electricityCost raw:', JSON.stringify(consumptionData.electricityCost));
+      console.log('electricityCost type:', typeof consumptionData.electricityCost);
+      console.log('electricityCost length:', consumptionData.electricityCost.length);
+      console.log('electricityCost after trim:', JSON.stringify(consumptionData.electricityCost.trim()));
+
+      // Preparar datos para la API de consumption_updates - usar la estructura correcta
+      const electricityCostProcessed = electricityCostValue; // Ya fue validado arriba
+      const gasCostProcessed = (consumptionData.gasCost && consumptionData.gasCost.trim() !== '') ? consumptionData.gasCost.trim() : null;
+      const waterCostProcessed = (consumptionData.waterCost && consumptionData.waterCost.trim() !== '') ? consumptionData.waterCost.trim() : null;
+
       const requestData = {
         user_id,
-        monthlyElectricBill: consumptionData.electricityCost,
-        monthlyGasBill: consumptionData.gasCost || null,
-        monthlyWaterBill: consumptionData.waterCost || null,
-        hasRenewableEnergy: false, // Could add this option to the form later
-        energyGoal: 'reduce_20', // Default value, could be obtained from user profile
-        customPeriod: customPeriod
+        electricityCost: electricityCostProcessed,
+        gasCost: gasCostProcessed,
+        waterCost: waterCostProcessed,
+        customPeriod: customPeriod,
+        notes: consumptionData.notes || null,
+        energyGoal: 'reduce_10', // Default goal
+        hasRenewableEnergy: false // Default value
       };
 
-      console.log('Sending consumption data to API:', requestData);
+      console.log('=== DEBUG: PROCESSED REQUEST DATA ===');
+      console.log('Request data:', JSON.stringify(requestData, null, 2));
+      console.log('electricityCost processed:', JSON.stringify(electricityCostProcessed));
+      console.log('electricityCost processed length:', electricityCostProcessed.length);
+      console.log('electricityCost is empty?', electricityCostProcessed === '');
+      console.log('electricityCost is falsy?', !electricityCostProcessed);
+
+      // Validación adicional antes de enviar
+      if (!electricityCostProcessed || electricityCostProcessed === '') {
+        console.log('CRITICAL ERROR: electricityCost became empty after processing!');
+        Alert.alert('Error', 'Internal error: electricity cost value was lost. Please try again.');
+        return;
+      }
 
       // Configurar la URL de la API
       const API_BASE_URL = __DEV__ 
         ? 'http://10.0.0.21:3000'  // IP local para dispositivos físicos/emuladores
         : 'https://your-production-api-url.com'; // Cambiar por tu URL de producción
 
-      const response = await fetch(`${API_BASE_URL}/api/energy-consumption`, {
+      const response = await fetch(`${API_BASE_URL}/api/energy-consumption/updates`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -77,6 +77,17 @@ router.post('/', async (req, res) => {
     console.log('Executing query:', query);
     console.log('With values:', values);
 
+    // First, verify that the user exists
+    const userCheck = await pool.query('SELECT id FROM users WHERE id = $1', [user_id]);
+    if (userCheck.rows.length === 0) {
+      console.error('User not found:', user_id);
+      return res.status(400).json({ 
+        error: 'User not found',
+        details: `No user found with ID: ${user_id}` 
+      });
+    }
+
+    console.log('User verified, creating household...');
     const result = await pool.query(query, values);
     
     console.log('Household created successfully:', result.rows[0]);
@@ -89,9 +100,25 @@ router.post('/', async (req, res) => {
 
   } catch (error) {
     console.error('Error creating household:', error);
-    res.status(500).json({ 
-      error: 'Internal server error',
-      details: error.message 
+    console.error('Error code:', error.code);
+    console.error('Error detail:', error.detail);
+    console.error('Error constraint:', error.constraint);
+    
+    let errorMessage = 'Internal server error';
+    let statusCode = 500;
+    
+    if (error.code === '23503') { // Foreign key violation
+      errorMessage = 'User not found or invalid user reference';
+      statusCode = 400;
+    } else if (error.code === '23505') { // Unique constraint violation
+      errorMessage = 'Household already exists for this user';
+      statusCode = 409;
+    }
+    
+    res.status(statusCode).json({ 
+      error: errorMessage,
+      details: error.message,
+      code: error.code
     });
   }
 });

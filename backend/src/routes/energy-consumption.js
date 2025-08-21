@@ -407,12 +407,31 @@ router.get('/dashboard/:userId', async (req, res) => {
     
     const household = householdResult.rows[0];
 
-    // 2. Obtener consumo energético del mes actual
+    // 2. Obtener consumo energético del mes actual - incluir consumption_updates
     const currentDate = new Date();
     const currentYear = currentDate.getFullYear();
     const currentMonth = currentDate.getMonth() + 1;
     const currentPeriod = `${currentYear}-${currentMonth.toString().padStart(2, '0')}`;
     
+    // Primero intentar obtener datos más recientes de consumption_updates
+    const currentUpdatesQuery = `
+      SELECT 
+        electricity_cost as cost_amount,
+        gas_cost as gas_usage,
+        water_cost as water_usage,
+        notes,
+        period_year,
+        period_month,
+        created_at as logged_at
+      FROM consumption_updates 
+      WHERE user_id = $1 
+      ORDER BY created_at DESC 
+      LIMIT 1
+    `;
+    
+    const currentUpdatesResult = await pool.query(currentUpdatesQuery, [userId]);
+    
+    // Si no hay datos en consumption_updates, usar energy_consumption
     const currentMonthQuery = `
       SELECT 
         cost_amount,
@@ -448,7 +467,7 @@ router.get('/dashboard/:userId', async (req, res) => {
     
     const baselineResult = await pool.query(baselineQuery, [userId]);
 
-    // 4. Procesar datos del mes actual
+    // 4. Procesar datos del mes actual - priorizar consumption_updates
     let currentMonthData = {
       electricity: 0,
       gas: 0,
@@ -459,7 +478,25 @@ router.get('/dashboard/:userId', async (req, res) => {
       hasData: false
     };
 
-    if (currentMonthResult.rows.length > 0) {
+    // Usar datos de consumption_updates si están disponibles (más recientes)
+    if (currentUpdatesResult.rows.length > 0) {
+      const current = currentUpdatesResult.rows[0];
+      currentMonthData = {
+        electricity: parseFloat(current.cost_amount) || 0,
+        gas: parseFloat(current.gas_usage) || 0,
+        water: parseFloat(current.water_usage) || 0,
+        total: (parseFloat(current.cost_amount) || 0) + 
+               (parseFloat(current.gas_usage) || 0) + 
+               (parseFloat(current.water_usage) || 0),
+        kwh: Math.round((parseFloat(current.cost_amount) || 0) * 8.33), // Estimación: $1 ≈ 8.33 kWh
+        period: currentPeriod,
+        hasData: true,
+        lastUpdated: current.logged_at
+      };
+      console.log('Using consumption_updates data for dashboard:', currentMonthData);
+    }
+    // Fallback a energy_consumption si no hay datos de updates
+    else if (currentMonthResult.rows.length > 0) {
       const current = currentMonthResult.rows[0];
       currentMonthData = {
         electricity: parseFloat(current.cost_amount) || 0,
@@ -473,6 +510,7 @@ router.get('/dashboard/:userId', async (req, res) => {
         hasData: true,
         lastUpdated: current.logged_at
       };
+      console.log('Using energy_consumption data for dashboard:', currentMonthData);
     }
 
     // 5. Calcular progreso vs baseline (primer registro del usuario)
@@ -494,7 +532,8 @@ router.get('/dashboard/:userId', async (req, res) => {
         
         if (baselineTotal > 0) {
           const difference = baselineTotal - currentMonthData.total;
-          const isFirstMonth = baseline.period === currentMonthData.period;
+          const hasUpdatesData = currentUpdatesResult.rows.length > 0;
+          const isFirstMonth = baseline.period === currentPeriod && !hasUpdatesData;
           
           savings = {
             percentage: Math.round((difference / baselineTotal) * 100 * 10) / 10, // Redondear a 1 decimal
@@ -504,6 +543,16 @@ router.get('/dashboard/:userId', async (req, res) => {
             baselineTotal: baselineTotal,
             baselinePeriod: baseline.period
           };
+          
+          console.log('Savings calculation:', {
+            baseline: baselineTotal,
+            current: currentMonthData.total,
+            difference,
+            percentage: savings.percentage,
+            hasUpdatesData,
+            isFirstMonth,
+            comparisonType: savings.comparisonType
+          });
         }
       }
     }
@@ -574,6 +623,233 @@ router.get('/dashboard/:userId', async (req, res) => {
     res.status(500).json({ 
       error: 'Internal server error',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// GET /api/energy-consumption/users/first - Get first available user from database
+router.get('/users/first', async (req, res) => {
+  try {
+    console.log('Getting first available user from database');
+    
+    // Get first user that has complete data (user + household)
+    const userQuery = `
+      SELECT u.*, h.id as household_id
+      FROM users u
+      LEFT JOIN households h ON u.id = h.user_id
+      WHERE h.id IS NOT NULL
+      ORDER BY u.created_at ASC
+      LIMIT 1
+    `;
+    
+    const userResult = await pool.query(userQuery);
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        error: 'No users found in database'
+      });
+    }
+    
+    const user = userResult.rows[0];
+    
+    res.json({
+      success: true,
+      data: {
+        user_id: user.id,
+        email: user.email,
+        full_name: user.full_name,
+        has_household: !!user.household_id,
+        household_id: user.household_id
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error getting first user:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// GET /api/energy-consumption/users/all - Get all users for debugging
+router.get('/users/all', async (req, res) => {
+  try {
+    console.log('Getting all users from database');
+    
+    const usersQuery = `
+      SELECT u.*, h.id as household_id, h.property_type
+      FROM users u
+      LEFT JOIN households h ON u.id = h.user_id
+      ORDER BY u.created_at ASC
+    `;
+    
+    const usersResult = await pool.query(usersQuery);
+    
+    res.json({
+      success: true,
+      count: usersResult.rows.length,
+      data: usersResult.rows
+    });
+    
+  } catch (error) {
+    console.error('Error getting all users:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// POST /api/energy-consumption/updates - Create consumption update entry
+router.post('/updates', async (req, res) => {
+  try {
+    const { 
+      user_id,
+      electricityCost,
+      gasCost,
+      waterCost,
+      customPeriod,
+      notes,
+      energyGoal = 'reduce_10',
+      hasRenewableEnergy = false
+    } = req.body;
+
+    console.log('Received consumption update data:', req.body);
+
+    // Validaciones básicas
+    if (!user_id) {
+      return res.status(400).json({ 
+        error: 'user_id is required' 
+      });
+    }
+
+    if (!electricityCost) {
+      return res.status(400).json({ 
+        error: 'electricityCost is required' 
+      });
+    }
+
+    // Determinar período
+    let periodYear, periodMonth;
+    if (customPeriod) {
+      const date = new Date(customPeriod);
+      periodYear = date.getFullYear();
+      periodMonth = date.getMonth() + 1; // JavaScript months are 0-indexed
+    } else {
+      const now = new Date();
+      periodYear = now.getFullYear();
+      periodMonth = now.getMonth() + 1;
+    }
+
+    // Convertir valores de string a números
+    const electricityCostNum = parseFloat(electricityCost);
+    const gasCostNum = gasCost ? parseFloat(gasCost) : null;
+    const waterCostNum = waterCost ? parseFloat(waterCost) : null;
+
+    // Validar que los números sean válidos
+    if (isNaN(electricityCostNum) || electricityCostNum <= 0) {
+      return res.status(400).json({ 
+        error: 'Invalid electricity cost amount' 
+      });
+    }
+
+    if (gasCostNum !== null && (isNaN(gasCostNum) || gasCostNum < 0)) {
+      return res.status(400).json({ 
+        error: 'Invalid gas cost amount' 
+      });
+    }
+
+    if (waterCostNum !== null && (isNaN(waterCostNum) || waterCostNum < 0)) {
+      return res.status(400).json({ 
+        error: 'Invalid water cost amount' 
+      });
+    }
+
+    // Verificar que el usuario existe
+    const userCheck = await pool.query('SELECT id FROM users WHERE id = $1', [user_id]);
+    if (userCheck.rows.length === 0) {
+      return res.status(400).json({ 
+        error: 'User not found' 
+      });
+    }
+
+    // Mapear energy goal a porcentaje
+    const goalPercentageMap = {
+      'reduce_10': 10,
+      'reduce_20': 20,
+      'reduce_30': 30,
+      'carbon_neutral': 50
+    };
+
+    const energyGoalPercentage = goalPercentageMap[energyGoal] || 10;
+
+    // Insertar en la tabla consumption_updates
+    const query = `
+      INSERT INTO consumption_updates (
+        user_id,
+        period_year,
+        period_month,
+        electricity_cost,
+        gas_cost,
+        water_cost,
+        energy_goal,
+        energy_goal_percentage,
+        has_renewable_energy,
+        custom_period_date,
+        notes
+      ) 
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) 
+      RETURNING *
+    `;
+
+    const values = [
+      user_id,
+      periodYear,
+      periodMonth,
+      electricityCostNum,
+      gasCostNum,
+      waterCostNum,
+      energyGoal,
+      energyGoalPercentage,
+      hasRenewableEnergy,
+      customPeriod || null,
+      notes || null
+    ];
+
+    console.log('Executing consumption_updates query:', query);
+    console.log('With values:', values);
+
+    const result = await pool.query(query, values);
+    
+    console.log('Consumption update created successfully:', result.rows[0]);
+
+    res.status(201).json({
+      success: true,
+      message: 'Consumption update created successfully',
+      data: result.rows[0]
+    });
+
+  } catch (error) {
+    console.error('Error creating consumption update:', error);
+    console.error('Error code:', error.code);
+    console.error('Error detail:', error.detail);
+    
+    let errorMessage = 'Internal server error';
+    let statusCode = 500;
+    
+    if (error.code === '23505') { // Unique constraint violation
+      errorMessage = 'Consumption data for this period already exists. Try updating it instead.';
+      statusCode = 409;
+    } else if (error.code === '23503') { // Foreign key violation
+      errorMessage = 'User not found or invalid user reference';
+      statusCode = 400;
+    }
+    
+    res.status(statusCode).json({ 
+      error: errorMessage,
+      details: error.message,
+      code: error.code
     });
   }
 });

@@ -16,9 +16,118 @@ const HomeDataScreen: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showTooltip, setShowTooltip] = useState<string | null>(null);
+  const [realUserId, setRealUserId] = useState<string | null>(null);
+  const [loadingUserId, setLoadingUserId] = useState(!userId);
+
+  // Function to get real user from database
+  const getRealUserFromDatabase = async (): Promise<string | null> => {
+    try {
+      const API_BASE_URL = __DEV__ 
+        ? 'http://10.0.0.21:3000'
+        : 'https://your-production-api-url.com';
+        
+      console.log('HomeDataScreen - Calling API:', `${API_BASE_URL}/api/energy-consumption/users/all`);
+      const userResponse = await fetch(`${API_BASE_URL}/api/energy-consumption/users/all`);
+      
+      console.log('HomeDataScreen - API Response status:', userResponse.status);
+      const userData = await userResponse.json();
+      console.log('HomeDataScreen - API Response data:', userData);
+      
+      if (userData.success && userData.data.length > 0) {
+        const userId = userData.data[0].id;
+        console.log('HomeDataScreen - Found real user_id from database:', userId);
+        console.log('HomeDataScreen - User details:', userData.data[0]);
+        return userId;
+      }
+      
+      console.log('HomeDataScreen - No users found in database');
+      return null;
+    } catch (error) {
+      console.error('HomeDataScreen - Error fetching user from database:', error);
+      return null;
+    }
+  };
+
+  // Get real user from database on component mount
+  React.useEffect(() => {
+    const fetchRealUser = async () => {
+      if (!userId) {
+        console.log('HomeDataScreen - No userId from params, fetching from database...');
+        setLoadingUserId(true);
+        const dbUserId = await getRealUserFromDatabase();
+        console.log('HomeDataScreen - Fetched dbUserId:', dbUserId);
+        setRealUserId(dbUserId);
+        
+        // Check if user already has household data
+        if (dbUserId) {
+          await checkExistingHousehold(dbUserId);
+        }
+        
+        setLoadingUserId(false);
+      } else {
+        console.log('HomeDataScreen - Using userId from params:', userId);
+        await checkExistingHousehold(userId);
+        setLoadingUserId(false);
+      }
+    };
+    
+    fetchRealUser();
+  }, [userId]);
+
+  // Check if user already has household data
+  const checkExistingHousehold = async (checkUserId: string) => {
+    try {
+      const API_BASE_URL = __DEV__ 
+        ? 'http://10.0.0.21:3000'
+        : 'https://your-production-api-url.com';
+        
+      console.log('HomeDataScreen - Checking existing household for user:', checkUserId);
+      const response = await fetch(`${API_BASE_URL}/api/households/user/${checkUserId}`);
+      const data = await response.json();
+      
+      if (data.success && data.households && data.households.length > 0) {
+        console.log('HomeDataScreen - User already has household, redirecting to Dashboard');
+        Alert.alert(
+          'Welcome Back!',
+          'You have already completed the home setup. Taking you to your dashboard.',
+          [
+            {
+              text: 'Continue',
+              onPress: () => {
+                navigation.reset({
+                  index: 0,
+                  routes: [{ name: 'Dashboard', params: { userId: checkUserId } }],
+                });
+              }
+            }
+          ]
+        );
+      } else {
+        console.log('HomeDataScreen - No existing household found, continuing with setup');
+      }
+    } catch (error) {
+      console.error('HomeDataScreen - Error checking existing household:', error);
+      // Continue with setup if there's an error checking
+    }
+  };
+
+  // Use real user ID from params or database
+  const effectiveUserId = userId || realUserId;
+
+  // Show loading while fetching user ID
+  if (loadingUserId) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#f8f9fa' }}>
+        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+          <ActivityIndicator size="large" color="#4CAF50" />
+          <Text style={[styles.subtitle, { marginTop: 16 }]}>Loading user data...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   // Check if userId is available
-  if (!userId) {
+  if (!effectiveUserId) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#f8f9fa' }}>
         <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
@@ -144,13 +253,25 @@ const HomeDataScreen: React.FC = () => {
         ? 'http://10.0.0.21:3000'  // IP local para dispositivos físicos/emuladores
         : 'https://your-production-api-url.com'; // Cambiar por tu URL de producción
 
-      // Usar el user_id real que viene de los parámetros de navegación
-      const user_id = userId;
+      // Use the effective user ID (from params or database)
+      const user_id = effectiveUserId;
       
-      console.log('Using real user_id from navigation params:', user_id);
+      console.log('HomeDataScreen - Using effective user_id:', user_id);
+      console.log('HomeDataScreen - paramUserId:', userId);
+      console.log('HomeDataScreen - realUserId:', realUserId);
+      console.log('HomeDataScreen - effectiveUserId:', effectiveUserId);
+      console.log('HomeDataScreen - user_id type:', typeof user_id);
+      console.log('HomeDataScreen - user_id length:', user_id ? user_id.length : 'null');
       
       if (!user_id || user_id.trim() === '') {
-        throw new Error('User ID is missing. Please log in again.');
+        throw new Error('User ID is missing. Please try again.');
+      }
+
+      // Validate UUID format
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(user_id.trim())) {
+        console.error('HomeDataScreen - Invalid UUID format:', user_id);
+        throw new Error('Invalid user ID format. Please try logging in again.');
       }
       
       const requestData = {
@@ -191,7 +312,7 @@ const HomeDataScreen: React.FC = () => {
         'Your home information has been saved successfully.',
         [{
           text: 'Continue',
-          onPress: () => navigation.navigate('BaseConsumption', { userId: user_id })
+          onPress: () => navigation.navigate('BaseConsumption', { userId: effectiveUserId })
         }]
       );
 

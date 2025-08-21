@@ -42,6 +42,9 @@ interface DashboardData {
     type: string;
     target: number;
     hasRenewableEnergy: boolean;
+    status?: string; // 'achieved', 'in_progress', 'behind', 'no_goal'
+    targetAmount?: number;
+    remainingToGoal?: number;
   };
   streak: number;
 }
@@ -56,9 +59,10 @@ const DashboardScreen: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [energyTips, setEnergyTips] = useState<EnergyTip[]>([]);
+  const [realUserId, setRealUserId] = useState<string | null>(null);
 
-  // Use userId from auth context if available, otherwise fallback to route params or hardcoded value
-  const effectiveUserId = user?.id || userId || 'eb5aab3b-508f-40ac-a1e5-0490f9b1aca0';
+  // Use userId from auth context if available, otherwise get from database
+  const effectiveUserId = user?.id || userId || realUserId;
 
   const handleLogConsumption = () => {
     console.log('Navigate to Consumption Form');
@@ -82,7 +86,9 @@ const DashboardScreen: React.FC = () => {
   };
 
   const handleNotifications = () => {
-    navigation.navigate('Notifications', { userId: effectiveUserId });
+    if (effectiveUserId) {
+      navigation.navigate('Notifications', { userId: effectiveUserId });
+    }
   };
 
   const handleTipPress = (tip: EnergyTip) => {
@@ -107,12 +113,27 @@ const DashboardScreen: React.FC = () => {
     setError(null);
     
     try {
-      // Configurar la URL de la API
+      // Always get the latest user from database to ensure we have current data
+      let currentUserId = null;
+      
+      console.log('DashboardScreen - Fetching latest user from database...');
       const API_BASE_URL = __DEV__ 
-        ? 'http://10.0.0.21:3000'  // IP local para dispositivos físicos/emuladores
-        : 'https://your-production-api-url.com'; // Cambiar por tu URL de producción
-
-      const response = await fetch(`${API_BASE_URL}/api/energy-consumption/dashboard/${effectiveUserId}`, {
+        ? 'http://10.0.0.21:3000'
+        : 'https://your-production-api-url.com';
+        
+      const userResponse = await fetch(`${API_BASE_URL}/api/energy-consumption/users/all`);
+      const userData = await userResponse.json();
+      
+      if (userData.success && userData.data.length > 0) {
+        currentUserId = userData.data[0].id;
+        setRealUserId(currentUserId); // Update state for future use
+        console.log('DashboardScreen - Using real user_id from database:', currentUserId);
+      } else {
+        throw new Error('No users found in database');
+      }
+      
+      // Configurar la URL de la API para el dashboard
+      const response = await fetch(`${API_BASE_URL}/api/energy-consumption/dashboard/${currentUserId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -126,7 +147,13 @@ const DashboardScreen: React.FC = () => {
       }
 
       console.log('Dashboard data loaded successfully:', responseData.data);
-      setDashboardData(responseData.data);
+      console.log('DashboardScreen - Current user_id used:', currentUserId);
+      
+      // Enhance dashboard data with goal progress if available
+      const enhancedDashboardData = currentUserId 
+        ? await enhanceDashboardWithGoalProgress(responseData.data, currentUserId)
+        : responseData.data;
+      setDashboardData(enhancedDashboardData);
 
       // Generar tips personalizados basados en los datos del dashboard
       if (responseData.data) {
@@ -141,6 +168,11 @@ const DashboardScreen: React.FC = () => {
 
     } catch (error) {
       console.error('Error loading dashboard data:', error);
+      console.error('DashboardScreen - Error details:', {
+        effectiveUserId,
+        realUserId,
+        error: error instanceof Error ? error.message : error
+      });
       
       // If there's no setup data (user skipped), show empty state
       if (error instanceof Error && (
@@ -215,19 +247,87 @@ const DashboardScreen: React.FC = () => {
   // Function to load unread notifications count
   const loadUnreadCount = async () => {
     try {
-      const unreadCount = await NotificationService.getUnreadCount();
-      setUnreadCount(unreadCount);
+      // TODO: Temporarily disabled due to auth token issues
+      // const unreadCount = await NotificationService.getUnreadCount();
+      // setUnreadCount(unreadCount);
+      setUnreadCount(0); // Set to 0 for now
     } catch (error) {
       console.error('Error loading unread count:', error);
       // No mostramos error para esto, es funcionalidad secundaria
     }
   };
 
+  // Function to load goal progress data from new system
+  const loadGoalProgressData = async (currentUserId: string) => {
+    try {
+      const API_BASE_URL = __DEV__ 
+        ? 'http://10.0.0.21:3000'
+        : 'https://your-production-api-url.com';
+
+      const response = await fetch(`${API_BASE_URL}/api/energy-consumption/goal-progress/${currentUserId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const responseData = await response.json();
+        console.log('Goal progress data loaded:', responseData.data);
+        return responseData.data;
+      } else {
+        console.log('Goal progress data not available, using legacy system');
+        return null;
+      }
+    } catch (error) {
+      console.log('Error loading goal progress data, falling back to legacy system:', error);
+      return null;
+    }
+  };
+
+  // Function to enhance dashboard data with goal progress
+  const enhanceDashboardWithGoalProgress = async (baseDashboardData: DashboardData, currentUserId: string) => {
+    const goalProgressData = await loadGoalProgressData(currentUserId);
+    
+    if (goalProgressData && goalProgressData.latest) {
+      const latest = goalProgressData.latest;
+      
+      // Update savings data with more precise calculations
+      baseDashboardData.savings = {
+        ...baseDashboardData.savings,
+        percentage: parseFloat(latest.savings_percentage) || baseDashboardData.savings.percentage,
+        amount: parseFloat(latest.savings_amount) || baseDashboardData.savings.amount,
+        hasComparison: true,
+        comparisonType: 'vs_baseline'
+      };
+
+      // Add goal status information
+      baseDashboardData.goal = {
+        ...baseDashboardData.goal,
+        status: latest.goal_status,
+        targetAmount: parseFloat(latest.goal_target_amount),
+        remainingToGoal: parseFloat(latest.remaining_to_goal)
+      };
+
+      console.log('Dashboard enhanced with goal progress data');
+    }
+    
+    return baseDashboardData;
+  };
+
   // Cargar datos al montar el componente
   useEffect(() => {
     loadDashboardData();
-    loadUnreadCount();
+    // loadUnreadCount(); // Temporalmente deshabilitado para evitar error 401
   }, []);
+
+  // Reload data when screen comes into focus (e.g., after completing onboarding)
+  useFocusEffect(
+    useCallback(() => {
+      console.log('DashboardScreen focused - reloading data');
+      loadDashboardData();
+    }, [])
+  );
 
   // Prevent back navigation from Dashboard
   useFocusEffect(
@@ -327,6 +427,29 @@ const DashboardScreen: React.FC = () => {
     return `${monthNames[parseInt(month) - 1]} ${year}`;
   };
 
+  // Function to get real user from database
+  const getRealUserFromDatabase = async (): Promise<string | null> => {
+    try {
+      const API_BASE_URL = __DEV__ 
+        ? 'http://10.0.0.21:3000'
+        : 'https://your-production-api-url.com';
+        
+      const userResponse = await fetch(`${API_BASE_URL}/api/energy-consumption/users/all`);
+      const userData = await userResponse.json();
+      
+      if (userData.success && userData.data.length > 0) {
+        const userId = userData.data[0].id;
+        console.log('Found real user_id from database:', userId);
+        return userId;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error fetching user from database:', error);
+      return null;
+    }
+  };
+
   if (isLoading) {
     return (
       <View style={styles.loaderContainer}>
@@ -370,7 +493,11 @@ const DashboardScreen: React.FC = () => {
           <Text style={styles.errorIcon}>📊</Text>
           <Text style={styles.errorTitle}>No data available</Text>
           <Text style={styles.errorMessage}>Complete your home setup to see your dashboard</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={() => navigation.navigate('HomeData', { userId: effectiveUserId })}>
+          <TouchableOpacity style={styles.retryButton} onPress={() => {
+            if (effectiveUserId) {
+              navigation.navigate('HomeData', { userId: effectiveUserId });
+            }
+          }}>
             <Text style={styles.retryButtonText}>Setup Home</Text>
           </TouchableOpacity>
         </View>
@@ -503,7 +630,11 @@ const DashboardScreen: React.FC = () => {
                 </Text>
                 <TouchableOpacity 
                   style={styles.setupPromptButton} 
-                  onPress={() => navigation.navigate('HomeData', { userId: effectiveUserId })}
+                  onPress={() => {
+                    if (effectiveUserId) {
+                      navigation.navigate('HomeData', { userId: effectiveUserId });
+                    }
+                  }}
                 >
                   <Text style={styles.setupPromptButtonText}>Complete Setup</Text>
                 </TouchableOpacity>
@@ -532,7 +663,95 @@ const DashboardScreen: React.FC = () => {
                     <View style={styles.goalProgressBar}>
                       <View style={[styles.goalProgressFill, { width: '0%' }]} />
                     </View>
-                    <Text style={styles.goalHelpText}>Start tracking your progress next month!</Text>
+                    <Text style={styles.goalHelpText}>🌱 Start tracking your progress next month!</Text>
+                  </View>
+                )}
+                
+                {/* Enhanced progress visualization for users with consumption updates */}
+                {dashboardData.savings.comparisonType === 'vs_baseline' && (
+                  <View style={styles.enhancedGoalVisualization}>
+                    <View style={styles.progressMetrics}>
+                      <View style={styles.metricItem}>
+                        <Text style={styles.metricLabel}>Current</Text>
+                        <Text style={styles.metricValue}>${dashboardData.currentMonth.total.toFixed(2)}</Text>
+                      </View>
+                      <View style={styles.metricItem}>
+                        <Text style={styles.metricLabel}>Baseline</Text>
+                        <Text style={styles.metricValue}>${(dashboardData.savings.baselineTotal || 0).toFixed(2)}</Text>
+                      </View>
+                      <View style={styles.metricItem}>
+                        <Text style={styles.metricLabel}>Target</Text>
+                        <Text style={styles.metricValue}>
+                          ${((dashboardData.savings.baselineTotal || 0) * (1 - dashboardData.goal.target / 100)).toFixed(2)}
+                        </Text>
+                      </View>
+                    </View>
+                    
+                    <View style={styles.progressBarContainer}>
+                      <View style={styles.progressBarTrack}>
+                        {/* Baseline to current progress */}
+                        <View style={[
+                          styles.progressBarFill,
+                          {
+                            width: `${Math.min(Math.abs(dashboardData.savings.percentage), 100)}%`,
+                            backgroundColor: dashboardData.savings.percentage >= 0 ? '#4CAF50' : '#F44336'
+                          }
+                        ]} />
+                        {/* Goal target indicator */}
+                        <View style={[
+                          styles.goalTargetIndicator,
+                          { left: `${Math.min(dashboardData.goal.target, 100)}%` }
+                        ]} />
+                      </View>
+                      <View style={styles.progressLabels}>
+                        <Text style={styles.progressLabelStart}>Baseline</Text>
+                        <Text style={[
+                          styles.progressLabelCurrent,
+                          { 
+                            left: `${Math.min(Math.abs(dashboardData.savings.percentage), 95)}%`,
+                            color: dashboardData.savings.percentage >= 0 ? '#4CAF50' : '#F44336'
+                          }
+                        ]}>
+                          {dashboardData.savings.percentage >= 0 ? '+' : ''}{dashboardData.savings.percentage}%
+                        </Text>
+                        <Text style={styles.progressLabelEnd}>Goal: {dashboardData.goal.target}%</Text>
+                      </View>
+                    </View>
+                    
+                    {/* Goal status message */}
+                    <View style={styles.goalStatusContainer}>
+                      {dashboardData.goal.status === 'achieved' ? (
+                        <Text style={styles.goalAchievedText}>
+                          🎉 Congratulations! You've achieved your {dashboardData.goal.target}% reduction goal!
+                        </Text>
+                      ) : dashboardData.goal.status === 'in_progress' ? (
+                        <Text style={styles.goalInProgressText}>
+                          💪 Great progress! {(dashboardData.goal.target - Math.abs(dashboardData.savings.percentage)).toFixed(1)}% more to reach your goal
+                          {dashboardData.goal.remainingToGoal && dashboardData.goal.remainingToGoal > 0 && 
+                            ` (save $${dashboardData.goal.remainingToGoal.toFixed(2)} more)`
+                          }
+                        </Text>
+                      ) : dashboardData.goal.status === 'behind' ? (
+                        <Text style={styles.goalBehindText}>
+                          📈 Focus on reducing consumption to get back on track
+                          {dashboardData.goal.targetAmount && 
+                            ` (target: $${dashboardData.goal.targetAmount.toFixed(2)})`
+                          }
+                        </Text>
+                      ) : dashboardData.savings.percentage >= dashboardData.goal.target ? (
+                        <Text style={styles.goalAchievedText}>
+                          🎉 Congratulations! You've achieved your goal!
+                        </Text>
+                      ) : dashboardData.savings.percentage > 0 ? (
+                        <Text style={styles.goalInProgressText}>
+                          💪 Great progress! {(dashboardData.goal.target - dashboardData.savings.percentage).toFixed(1)}% more to reach your goal
+                        </Text>
+                      ) : (
+                        <Text style={styles.goalBehindText}>
+                          📈 Focus on reducing consumption to get back on track
+                        </Text>
+                      )}
+                    </View>
                   </View>
                 )}
                 <Text style={styles.progressSubtext}>
@@ -1011,6 +1230,107 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 12,
+  },
+  
+  // Enhanced Goal Progress Styles
+  enhancedGoalVisualization: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 16,
+    marginVertical: 12,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  progressMetrics: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  metricItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  metricLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 4,
+    fontWeight: '500',
+  },
+  metricValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  progressBarContainer: {
+    marginBottom: 16,
+  },
+  progressBarTrack: {
+    height: 8,
+    backgroundColor: '#E0E0E0',
+    borderRadius: 4,
+    position: 'relative',
+    marginBottom: 8,
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 4,
+    position: 'absolute',
+    left: 0,
+    top: 0,
+  },
+  goalTargetIndicator: {
+    position: 'absolute',
+    top: -2,
+    width: 2,
+    height: 12,
+    backgroundColor: '#FF9800',
+    borderRadius: 1,
+  },
+  progressLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    position: 'relative',
+  },
+  progressLabelStart: {
+    fontSize: 10,
+    color: '#666',
+    position: 'absolute',
+    left: 0,
+  },
+  progressLabelCurrent: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    position: 'absolute',
+    transform: [{ translateX: -10 }],
+  },
+  progressLabelEnd: {
+    fontSize: 10,
+    color: '#FF9800',
+    position: 'absolute',
+    right: 0,
+    fontWeight: '600',
+  },
+  goalStatusContainer: {
+    alignItems: 'center',
+    paddingTop: 8,
+  },
+  goalAchievedText: {
+    fontSize: 14,
+    color: '#4CAF50',
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  goalInProgressText: {
+    fontSize: 14,
+    color: '#2196F3',
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  goalBehindText: {
+    fontSize: 14,
+    color: '#FF5722',
+    fontWeight: '500',
+    textAlign: 'center',
   },
 });
 

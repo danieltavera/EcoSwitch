@@ -48,23 +48,85 @@ const SignInScreen: React.FC = () => {
     try {
       await login(email.trim().toLowerCase(), password);
       
-      // Login successful - get user data from auth context
-      Alert.alert(
-        'Welcome!',
-        'Sign in successful',
-        [
-          {
-            text: 'Continue',
-            onPress: () => {
-              // Reset navigation stack and navigate to dashboard
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'Dashboard', params: { userId: undefined } }],
-              });
+      // Login successful - check if user has completed onboarding
+      const checkOnboardingStatus = async () => {
+        try {
+          const API_BASE_URL = __DEV__ 
+            ? 'http://10.0.0.21:3000'
+            : 'https://your-production-api-url.com';
+          
+          // Get user from database
+          const userResponse = await fetch(`${API_BASE_URL}/api/energy-consumption/users/all`);
+          const userData = await userResponse.json();
+          
+          if (userData.success && userData.data.length > 0) {
+            const user = userData.data[0];
+            const userId = user.id;
+            
+            console.log('SignInScreen - Found user:', userId);
+            console.log('SignInScreen - User has household_id:', user.household_id);
+            
+            // Check if user has household_id (completed onboarding)
+            if (user.household_id) {
+              // User completed onboarding, go to dashboard
+              Alert.alert(
+                'Welcome Back!',
+                'Taking you to your dashboard.',
+                [
+                  {
+                    text: 'Continue',
+                    onPress: () => {
+                      navigation.reset({
+                        index: 0,
+                        routes: [{ name: 'Dashboard', params: { userId } }],
+                      });
+                    }
+                  }
+                ]
+              );
+            } else {
+              // User needs to complete onboarding
+              Alert.alert(
+                'Welcome!',
+                'Let\'s set up your energy profile.',
+                [
+                  {
+                    text: 'Continue',
+                    onPress: () => {
+                      navigation.reset({
+                        index: 0,
+                        routes: [{ name: 'HomeData', params: { userId } }],
+                      });
+                    }
+                  }
+                ]
+              );
             }
+          } else {
+            throw new Error('No user found');
           }
-        ]
-      );
+        } catch (error) {
+          console.error('SignInScreen - Error checking onboarding status:', error);
+          // Fallback to HomeData if there's an error
+          Alert.alert(
+            'Welcome!',
+            'Sign in successful',
+            [
+              {
+                text: 'Continue',
+                onPress: () => {
+                  navigation.reset({
+                    index: 0,
+                    routes: [{ name: 'HomeData' }],
+                  });
+                }
+              }
+            ]
+          );
+        }
+      };
+      
+      await checkOnboardingStatus();
       
     } catch (error) {
       console.error('Sign in error:', error);
