@@ -71,7 +71,7 @@ export default function ResetPasswordScreen({ navigation, route }: Props) {
   const validateForm = (): boolean => {
     const newErrors: ValidationErrors = {};
 
-    // Validar contraseña
+    // Validate password
     if (!password) {
       newErrors.password = 'Password is required';
     } else if (password.length < 6) {

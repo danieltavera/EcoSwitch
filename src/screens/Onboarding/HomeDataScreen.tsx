@@ -46,7 +46,7 @@ const HomeDataScreen: React.FC = () => {
     setHomeData(prev => ({ ...prev, [field]: value }));
   };
 
-  // Función para formatear números con decimales automáticamente
+  // Function to format numbers with decimals automatically
   const formatDecimalInput = (field: string, value: string) => {
     // Remover caracteres no numéricos excepto punto decimal
     const cleanValue = value.replace(/[^0-9.]/g, '');
@@ -58,11 +58,11 @@ const HomeDataScreen: React.FC = () => {
       formattedValue += '.' + parts[1];
     }
     
-    // Actualizar el estado
+    // Update state
     setHomeData(prev => ({ ...prev, [field]: formattedValue }));
   };
 
-  // Función para formatear con decimales en tiempo real
+  // Function to format with decimals in real time
   const formatDecimalInputRealTime = (field: string, value: string) => {
     // Remover caracteres no numéricos excepto punto decimal
     const cleanValue = value.replace(/[^0-9.]/g, '');
@@ -74,13 +74,13 @@ const HomeDataScreen: React.FC = () => {
       formattedValue += '.' + parts[1];
     }
     
-    // Actualizar el estado sin añadir decimales automáticamente mientras escribe
+    // Update state without automatically adding decimals while typing
     setHomeData(prev => ({ ...prev, [field]: formattedValue }));
   };
 
-  // Función para formatear números enteros
+  // Function to format integer numbers
   const formatIntegerInput = (field: string, value: string) => {
-    // Solo permitir números enteros
+    // Only allow integer numbers
     const cleanValue = value.replace(/[^0-9]/g, '');
     setHomeData(prev => ({ ...prev, [field]: cleanValue }));
   };

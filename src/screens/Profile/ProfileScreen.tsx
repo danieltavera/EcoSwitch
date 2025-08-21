@@ -7,7 +7,7 @@ import { ProfileNavigationProp } from '../../types/navigation';
 const ProfileScreen: React.FC = () => {
   const navigation = useNavigation<ProfileNavigationProp>();
 
-  // Datos de ejemplo del usuario
+  // Sample user data
   const userProfile = {
     firstName: 'John',
     lastName: 'Doe',

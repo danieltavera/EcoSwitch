@@ -94,7 +94,7 @@ const WelcomeDashboardScreen: React.FC = () => {
               <View style={styles.featureText}>
                 <Text style={styles.featureTitle}>Energy Overview</Text>
                 <Text style={styles.featureDescription}>
-                  View sample data and get a preview of your energy tracking capabilities
+                  Track your monthly electricity, gas, and water consumption in one place
                 </Text>
               </View>
             </View>
@@ -106,7 +106,7 @@ const WelcomeDashboardScreen: React.FC = () => {
               <View style={styles.featureText}>
                 <Text style={styles.featureTitle}>Goals & Progress</Text>
                 <Text style={styles.featureDescription}>
-                  See how goal tracking works with demo scenarios
+                  Set energy reduction targets and monitor your progress over time
                 </Text>
               </View>
             </View>
@@ -116,9 +116,9 @@ const WelcomeDashboardScreen: React.FC = () => {
                 <Text style={styles.featureIcon}>💡</Text>
               </View>
               <View style={styles.featureText}>
-                <Text style={styles.featureTitle}>Smart Recommendations</Text>
+                <Text style={styles.featureTitle}>Personalized Tips</Text>
                 <Text style={styles.featureDescription}>
-                  Discover general tips and energy-saving suggestions
+                  Get smart recommendations tailored to your home and energy goals
                 </Text>
               </View>
             </View>
@@ -128,9 +128,9 @@ const WelcomeDashboardScreen: React.FC = () => {
                 <Text style={styles.featureIcon}>📈</Text>
               </View>
               <View style={styles.featureText}>
-                <Text style={styles.featureTitle}>Usage Analytics</Text>
+                <Text style={styles.featureTitle}>Savings Tracking</Text>
                 <Text style={styles.featureDescription}>
-                  Explore sample charts and understand energy patterns
+                  See your cost savings and environmental impact from energy reduction
                 </Text>
               </View>
             </View>

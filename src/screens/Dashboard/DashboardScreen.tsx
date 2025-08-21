@@ -6,6 +6,9 @@ import { DashboardNavigationProp, RouteProp } from '../../types/navigation';
 import NotificationBadge from '../../components/NotificationBadge';
 import { NotificationService } from '../../services/notificationService';
 import { useAuth } from '../../context/AuthContext';
+import EnergyTipCarousel from '../../components/EnergyTipCarousel';
+import { getTipsForCarousel, UserContext } from '../../utils/tipPersonalization';
+import { EnergyTip } from '../../data/energyTips';
 
 interface DashboardData {
   user: {
@@ -52,6 +55,7 @@ const DashboardScreen: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [energyTips, setEnergyTips] = useState<EnergyTip[]>([]);
 
   // Use userId from auth context if available, otherwise fallback to route params or hardcoded value
   const effectiveUserId = user?.id || userId || 'eb5aab3b-508f-40ac-a1e5-0490f9b1aca0';
@@ -59,19 +63,6 @@ const DashboardScreen: React.FC = () => {
   const handleLogConsumption = () => {
     console.log('Navigate to Consumption Form');
     navigation.navigate('Consumption');
-  };
-
-  const handleViewChallenges = () => {
-    navigation.navigate('Challenges');
-  };
-
-  const handleEducationCenter = () => {
-    navigation.navigate('Education');
-  };
-
-  const handleCommunity = () => {
-    console.log('Navigate to Community');
-    // TODO: navigation.navigate('Community');
   };
 
   const handleProfile = () => {
@@ -94,7 +85,23 @@ const DashboardScreen: React.FC = () => {
     navigation.navigate('Notifications', { userId: effectiveUserId });
   };
 
-  // Función para cargar datos del dashboard
+  const handleTipPress = (tip: EnergyTip) => {
+    // For now we only show an alert with the complete tip
+    // In the future this could navigate to a detailed tips screen
+    Alert.alert(
+      tip.title,
+      tip.content,
+      [
+        { text: 'Got it!', style: 'default' },
+        { text: 'Learn More', style: 'default', onPress: () => {
+          // Aquí podrías navegar a más información o abrir un link
+          console.log('Learn more about:', tip.title);
+        }}
+      ]
+    );
+  };
+
+  // Function to load dashboard data
   const loadDashboardData = async () => {
     setIsLoading(true);
     setError(null);
@@ -121,10 +128,21 @@ const DashboardScreen: React.FC = () => {
       console.log('Dashboard data loaded successfully:', responseData.data);
       setDashboardData(responseData.data);
 
+      // Generar tips personalizados basados en los datos del dashboard
+      if (responseData.data) {
+        const userContext: UserContext = {
+          goal: responseData.data.goal,
+          household: responseData.data.household,
+          savings: responseData.data.savings
+        };
+        const personalizedTips = getTipsForCarousel(userContext, 5);
+        setEnergyTips(personalizedTips);
+      }
+
     } catch (error) {
       console.error('Error loading dashboard data:', error);
       
-      // Si no hay datos del setup (usuario hizo skip), mostrar estado vacío
+      // If there's no setup data (user skipped), show empty state
       if (error instanceof Error && (
         error.message.includes('No data found') || 
         error.message.includes('No household data found') ||
@@ -162,6 +180,16 @@ const DashboardScreen: React.FC = () => {
           },
           streak: 0
         });
+        
+        // Generate basic tips for users without complete setup
+        const basicUserContext: UserContext = {
+          goal: { type: 'Not set', target: 0, hasRenewableEnergy: false },
+          household: { type: 'Not set', occupants: 0 },
+          savings: { percentage: 0, hasComparison: false }
+        };
+        const basicTips = getTipsForCarousel(basicUserContext, 3);
+        setEnergyTips(basicTips);
+        
         setError(null);
         return;
       }
@@ -184,7 +212,7 @@ const DashboardScreen: React.FC = () => {
     }
   };
 
-  // Función para cargar el contador de notificaciones no leídas
+  // Function to load unread notifications count
   const loadUnreadCount = async () => {
     try {
       const unreadCount = await NotificationService.getUnreadCount();
@@ -223,7 +251,7 @@ const DashboardScreen: React.FC = () => {
     }, [])
   );
 
-  // Función para obtener el texto de la meta
+  // Function to get goal text
   const getGoalText = (goalType: string, target: number) => {
     switch (goalType) {
       case 'reduce_10': return '10% reduction';
@@ -234,7 +262,7 @@ const DashboardScreen: React.FC = () => {
     }
   };
 
-  // Función para obtener el texto del progreso según el tipo de comparación
+  // Function to get progress text based on comparison type
   const getProgressText = (savings: any, goal: any) => {
     if (!savings.hasComparison) {
       return 'No comparison data';
@@ -244,7 +272,7 @@ const DashboardScreen: React.FC = () => {
     const percentageText = `${Math.abs(savings.percentage)}%`;
     
     if (savings.comparisonType === 'first_month') {
-      // Primer mes del usuario
+      // User's first month
       const targetReduction = goal.target;
       if (targetReduction > 0) {
         return `Target: ${targetReduction}% reduction`;
@@ -263,7 +291,7 @@ const DashboardScreen: React.FC = () => {
     }
   };
 
-  // Función para obtener el subtexto del progreso
+  // Function to get progress subtext
   const getProgressSubtext = (savings: any, goal: any) => {
     const targetText = `Target: ${getGoalText(goal.type, goal.target)}`;
     
@@ -289,7 +317,7 @@ const DashboardScreen: React.FC = () => {
     return targetText;
   };
 
-  // Función para obtener la fecha formateada
+  // Function to get formatted date
   const getFormattedDate = (period: string) => {
     const [year, month] = period.split('-');
     const monthNames = [
@@ -523,74 +551,14 @@ const DashboardScreen: React.FC = () => {
               <Text style={styles.actionTitle}>Log Consumption</Text>
               <Text style={styles.actionSubtitle}>Track your usage</Text>
             </TouchableOpacity>
-
-            <TouchableOpacity style={styles.actionCard} onPress={handleViewChallenges}>
-              <Text style={styles.actionIcon}>🎮</Text>
-              <Text style={styles.actionTitle}>Challenges</Text>
-              <Text style={styles.actionSubtitle}>Earn rewards</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.actionCard} onPress={handleEducationCenter}>
-              <Text style={styles.actionIcon}>📚</Text>
-              <Text style={styles.actionTitle}>Learn</Text>
-              <Text style={styles.actionSubtitle}>Energy tips</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.actionCard} onPress={handleCommunity}>
-              <Text style={styles.actionIcon}>🌍</Text>
-              <Text style={styles.actionTitle}>Community</Text>
-              <Text style={styles.actionSubtitle}>Connect & share</Text>
-            </TouchableOpacity>
           </View>
 
-          {/* Recent Activity */}
-          <Text style={styles.sectionTitle}>Recent Activity</Text>
-          <View style={styles.activityCard}>
-            {dashboardData.currentMonth.hasData ? (
-              <View style={styles.activityItem}>
-                <Text style={styles.activityIcon}>📊</Text>
-                <View style={styles.activityInfo}>
-                  <Text style={styles.activityTitle}>Consumption Data Available</Text>
-                  <Text style={styles.activitySubtitle}>
-                    {getFormattedDate(dashboardData.currentMonth.period)} data recorded
-                  </Text>
-                </View>
-                <Text style={styles.activityTime}>Recent</Text>
-              </View>
-            ) : (
-              <View style={styles.activityItem}>
-                <Text style={styles.activityIcon}>⏳</Text>
-                <View style={styles.activityInfo}>
-                  <Text style={styles.activityTitle}>No Recent Activity</Text>
-                  <Text style={styles.activitySubtitle}>Add your consumption data to get started</Text>
-                </View>
-                <Text style={styles.activityTime}>-</Text>
-              </View>
-            )}
-            
-            <View style={styles.activityItem}>
-              <Text style={styles.activityIcon}>
-                {dashboardData.household.type === 'Not set' ? '⚙️' : '🏠'}
-              </Text>
-              <View style={styles.activityInfo}>
-                <Text style={styles.activityTitle}>
-                  {dashboardData.household.type === 'Not set' 
-                    ? 'Setup Pending' 
-                    : 'Home Setup Completed'
-                  }
-                </Text>
-                <Text style={styles.activitySubtitle}>
-                  {dashboardData.household.type === 'Not set' 
-                    ? 'Complete your home and energy setup'
-                    : `${dashboardData.household.area}m² ${dashboardData.household.type} configured`
-                  }
-                </Text>
-              </View>
-              <Text style={styles.activityTime}>
-                {dashboardData.household.type === 'Not set' ? 'Pending' : 'Setup'}
-              </Text>
-            </View>
-          </View>
+          {/* Energy Tips Carousel */}
+          <EnergyTipCarousel 
+            tips={energyTips} 
+            onTipPress={handleTipPress}
+            autoRotateInterval={10000}
+          />
 
           {/* Profile Access */}
           <View style={styles.bottomActions}>
@@ -820,7 +788,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   actionCard: {
-    width: '48%',
+    width: '100%',
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
@@ -846,48 +814,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     textAlign: 'center',
-  },
-  
-  // Activity Card
-  activityCard: {
-    backgroundColor: '#fff',
-    marginHorizontal: 20,
-    marginBottom: 20,
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  activityItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  activityIcon: {
-    fontSize: 24,
-    marginRight: 12,
-  },
-  activityInfo: {
-    flex: 1,
-  },
-  activityTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 2,
-  },
-  activitySubtitle: {
-    fontSize: 12,
-    color: '#666',
-  },
-  activityTime: {
-    fontSize: 12,
-    color: '#999',
   },
   
   // Bottom Actions
@@ -1067,6 +993,24 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: 'bold',
+  },
+  tipsContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginHorizontal: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  tipsTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 12,
   },
 });
 

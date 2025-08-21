@@ -41,7 +41,7 @@ const InitialSetupScreen: React.FC = () => {
             <Text style={styles.welcomeText}>Welcome to the Future of Energy!</Text>
             <Text style={styles.title}>Track, Save & Go Green</Text>
             <Text style={styles.subtitle}>
-              Join thousands of users reducing their carbon footprint and saving money with smart energy management.
+              Take control of your energy consumption with smart tracking, personalized insights, and actionable tips to reduce your environmental impact.
             </Text>
             
             <View style={styles.featuresContainer}>
@@ -56,16 +56,16 @@ const InitialSetupScreen: React.FC = () => {
               <View style={styles.featureItem}>
                 <Text style={styles.featureIcon}>🎯</Text>
                 <View style={styles.featureContent}>
-                  <Text style={styles.featureTitle}>Join Challenges</Text>
-                  <Text style={styles.featureDescription}>Earn points and compete with the community</Text>
+                  <Text style={styles.featureTitle}>Set Energy Goals</Text>
+                  <Text style={styles.featureDescription}>Define targets and track your progress towards them</Text>
                 </View>
               </View>
               
               <View style={styles.featureItem}>
-                <Text style={styles.featureIcon}>📚</Text>
+                <Text style={styles.featureIcon}>�</Text>
                 <View style={styles.featureContent}>
-                  <Text style={styles.featureTitle}>Learn & Grow</Text>
-                  <Text style={styles.featureDescription}>Access educational content and energy tips</Text>
+                  <Text style={styles.featureTitle}>Personalized Tips</Text>
+                  <Text style={styles.featureDescription}>Get smart recommendations to reduce energy consumption</Text>
                 </View>
               </View>
 
@@ -73,7 +73,7 @@ const InitialSetupScreen: React.FC = () => {
                 <Text style={styles.featureIcon}>💰</Text>
                 <View style={styles.featureContent}>
                   <Text style={styles.featureTitle}>Save Money</Text>
-                  <Text style={styles.featureDescription}>Reduce bills with personalized insights</Text>
+                  <Text style={styles.featureDescription}>Reduce bills with personalized insights and tracking</Text>
                 </View>
               </View>
             </View>

@@ -7,24 +7,20 @@ const ConsumptionScreen: React.FC = () => {
   const navigation = useNavigation<ConsumptionNavigationProp>();
   const [isLoading, setIsLoading] = useState(false);
   const [consumptionData, setConsumptionData] = useState({
-    period: 'current_month',
-    electricityKwh: '',
+    period: 'current',
     electricityCost: '',
-    gasUsage: '',
     gasCost: '',
-    waterUsage: '',
     waterCost: '',
     notes: '',
     date: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
   });
 
   const periods = [
-    { id: 'current_month', label: 'Current Month', icon: '📅' },
-    { id: 'last_month', label: 'Last Month', icon: '📋' },
-    { id: 'custom', label: 'Custom Date', icon: '🗓️' },
+    { id: 'current', label: 'Current Date', icon: '�' },
+    { id: 'custom', label: 'Select Date', icon: '🗓️' },
   ];
 
-  // Función para formatear campos de dinero con decimales automáticamente
+  // Function to format money fields with decimals automatically
   const formatCurrencyInputRealTime = (field: string, value: string) => {
     const cleanValue = value.replace(/[^0-9.]/g, '');
     const parts = cleanValue.split('.');
@@ -37,37 +33,28 @@ const ConsumptionScreen: React.FC = () => {
     setConsumptionData(prev => ({ ...prev, [field]: formattedValue }));
   };
 
-  // Función para formatear números con decimales
-  const formatNumberInputRealTime = (field: string, value: string) => {
-    const cleanValue = value.replace(/[^0-9.]/g, '');
-    const parts = cleanValue.split('.');
-    let formattedValue = parts[0];
-    
-    if (parts.length > 1) {
-      formattedValue += '.' + parts[1];
-    }
-    
-    setConsumptionData(prev => ({ ...prev, [field]: formattedValue }));
-  };
-
   const handlePeriodSelect = (period: string) => {
-    setConsumptionData(prev => ({ ...prev, period }));
+    if (period === 'current') {
+      // Auto-set to current date
+      setConsumptionData(prev => ({ 
+        ...prev, 
+        period, 
+        date: new Date().toISOString().split('T')[0] 
+      }));
+    } else {
+      // Keep existing date for custom selection
+      setConsumptionData(prev => ({ ...prev, period }));
+    }
   };
 
   const handleSaveConsumption = async () => {
     // Validaciones básicas
-    if (!consumptionData.electricityKwh || !consumptionData.electricityCost) {
-      Alert.alert('Error', 'Please fill in at least electricity consumption and cost');
+    if (!consumptionData.electricityCost) {
+      Alert.alert('Error', 'Please fill in electricity cost');
       return;
     }
 
-    const electricityKwh = parseFloat(consumptionData.electricityKwh);
     const electricityCost = parseFloat(consumptionData.electricityCost);
-
-    if (isNaN(electricityKwh) || electricityKwh <= 0) {
-      Alert.alert('Error', 'Please enter a valid electricity consumption in kWh');
-      return;
-    }
 
     if (isNaN(electricityCost) || electricityCost <= 0) {
       Alert.alert('Error', 'Please enter a valid electricity cost');
@@ -99,17 +86,12 @@ const ConsumptionScreen: React.FC = () => {
 
       // Determinar el período personalizado según la selección
       let customPeriod = undefined;
-      if (consumptionData.period === 'last_month') {
-        const lastMonth = new Date();
-        lastMonth.setMonth(lastMonth.getMonth() - 1);
-        const year = lastMonth.getFullYear();
-        const month = (lastMonth.getMonth() + 1).toString().padStart(2, '0');
-        customPeriod = `${year}-${month}`;
-      } else if (consumptionData.period === 'custom' && consumptionData.date) {
-        const date = new Date(consumptionData.date);
-        const year = date.getFullYear();
-        const month = (date.getMonth() + 1).toString().padStart(2, '0');
-        customPeriod = `${year}-${month}`;
+      if (consumptionData.period === 'custom' && consumptionData.date) {
+        // Para fechas personalizadas, usar la fecha exacta seleccionada
+        customPeriod = consumptionData.date;
+      } else if (consumptionData.period === 'current') {
+        // Para fecha actual, usar la fecha de hoy
+        customPeriod = new Date().toISOString().split('T')[0];
       }
 
       // Preparar datos para la API (usando la misma estructura que el onboarding)
@@ -118,8 +100,8 @@ const ConsumptionScreen: React.FC = () => {
         monthlyElectricBill: consumptionData.electricityCost,
         monthlyGasBill: consumptionData.gasCost || null,
         monthlyWaterBill: consumptionData.waterCost || null,
-        hasRenewableEnergy: false, // Se podría agregar esta opción al formulario más tarde
-        energyGoal: 'reduce_20', // Valor por defecto, se podría obtener del perfil del usuario
+        hasRenewableEnergy: false, // Could add this option to the form later
+        energyGoal: 'reduce_20', // Default value, could be obtained from user profile
         customPeriod: customPeriod
       };
 
@@ -157,12 +139,9 @@ const ConsumptionScreen: React.FC = () => {
             onPress: () => {
               // Limpiar formulario para nueva entrada
               setConsumptionData({
-                period: 'current_month',
-                electricityKwh: '',
+                period: 'current',
                 electricityCost: '',
-                gasUsage: '',
                 gasCost: '',
-                waterUsage: '',
                 waterCost: '',
                 notes: '',
                 date: new Date().toISOString().split('T')[0],
@@ -205,15 +184,15 @@ const ConsumptionScreen: React.FC = () => {
 
   // Calcular estadísticas rápidas
   const calculateQuickStats = () => {
-    const kwh = parseFloat(consumptionData.electricityKwh) || 0;
-    const cost = parseFloat(consumptionData.electricityCost) || 0;
-    const pricePerKwh = kwh > 0 ? (cost / kwh) : 0;
+    const electricityCost = parseFloat(consumptionData.electricityCost) || 0;
+    const gasCost = parseFloat(consumptionData.gasCost) || 0;
+    const waterCost = parseFloat(consumptionData.waterCost) || 0;
+    const totalCost = electricityCost + gasCost + waterCost;
     
     return {
-      kwh,
-      cost,
-      pricePerKwh: pricePerKwh.toFixed(3),
-      dailyAverage: (kwh / 30).toFixed(1), // Asumiendo 30 días por mes
+      electricityCost,
+      totalCost,
+      dailyAverage: (electricityCost / 30).toFixed(2), // Asumiendo 30 días por mes
     };
   };
 
@@ -268,27 +247,48 @@ const ConsumptionScreen: React.FC = () => {
             ))}
           </View>
           
+          {/* Show selected date for current period */}
+          {consumptionData.period === 'current' && (
+            <View style={styles.selectedDateContainer}>
+              <Text style={styles.selectedDateText}>
+                📅 Selected Date: {new Date(consumptionData.date).toLocaleDateString('en-US', { 
+                  weekday: 'long', 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric' 
+                })}
+              </Text>
+            </View>
+          )}
+          
           {/* Custom Date Input */}
           {consumptionData.period === 'custom' && (
             <View style={styles.customDateContainer}>
-              <Text style={styles.inputLabel}>Select Month and Year</Text>
+              <Text style={styles.inputLabel}>Select Date</Text>
               <TextInput
                 style={styles.input}
-                placeholder="YYYY-MM (e.g., 2025-07)"
-                value={consumptionData.date.substring(0, 7)} // Show YYYY-MM format
+                placeholder="YYYY-MM-DD (e.g., 2025-08-20)"
+                value={consumptionData.date}
                 onChangeText={(value) => {
-                  // Format as YYYY-MM and extend to full date
-                  const parts = value.split('-');
-                  if (parts.length === 2 && parts[0].length === 4 && parts[1].length <= 2) {
-                    const fullDate = `${value}-01`; // Set to first day of month
-                    setConsumptionData(prev => ({ ...prev, date: fullDate }));
+                  // Validate date format and ensure it's not in the past
+                  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+                  if (dateRegex.test(value) || value.length <= 10) {
+                    const selectedDate = new Date(value);
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0); // Reset time for comparison
+                    
+                    // Only allow current date or future dates
+                    if (selectedDate >= today || value.length <= 10) {
+                      setConsumptionData(prev => ({ ...prev, date: value }));
+                    }
                   }
                 }}
                 placeholderTextColor="#888"
                 keyboardType="numeric"
+                maxLength={10}
               />
               <Text style={styles.helpText}>
-                Enter the month and year for this consumption data
+                Enter a date from today onwards (YYYY-MM-DD format)
               </Text>
             </View>
           )}
@@ -298,61 +298,39 @@ const ConsumptionScreen: React.FC = () => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>⚡ Electricity (Required)</Text>
           
-          <View style={styles.inputRow}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Usage (kWh) *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g., 350"
-                value={consumptionData.electricityKwh}
-                onChangeText={(value) => formatNumberInputRealTime('electricityKwh', value)}
-                onBlur={() => {
-                  if (consumptionData.electricityKwh && !consumptionData.electricityKwh.includes('.')) {
-                    setConsumptionData(prev => ({ 
-                      ...prev, 
-                      electricityKwh: prev.electricityKwh + '.0' 
-                    }));
-                  }
-                }}
-                keyboardType="decimal-pad"
-                placeholderTextColor="#888"
-              />
-            </View>
-            
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Cost ($) *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g., 125.50"
-                value={consumptionData.electricityCost}
-                onChangeText={(value) => formatCurrencyInputRealTime('electricityCost', value)}
-                onBlur={() => {
-                  if (consumptionData.electricityCost && !consumptionData.electricityCost.includes('.')) {
-                    setConsumptionData(prev => ({ 
-                      ...prev, 
-                      electricityCost: prev.electricityCost + '.00' 
-                    }));
-                  }
-                }}
-                keyboardType="decimal-pad"
-                placeholderTextColor="#888"
-              />
-            </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Cost ($) *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g., 125.50"
+              value={consumptionData.electricityCost}
+              onChangeText={(value) => formatCurrencyInputRealTime('electricityCost', value)}
+              onBlur={() => {
+                if (consumptionData.electricityCost && !consumptionData.electricityCost.includes('.')) {
+                  setConsumptionData(prev => ({ 
+                    ...prev, 
+                    electricityCost: prev.electricityCost + '.00' 
+                  }));
+                }
+              }}
+              keyboardType="decimal-pad"
+              placeholderTextColor="#888"
+            />
           </View>
         </View>
 
         {/* Quick Stats */}
-        {stats.kwh > 0 && (
+        {stats.electricityCost > 0 && (
           <View style={styles.statsCard}>
             <Text style={styles.statsTitle}>Quick Stats</Text>
             <View style={styles.statsGrid}>
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>${stats.pricePerKwh}</Text>
-                <Text style={styles.statLabel}>per kWh</Text>
+                <Text style={styles.statValue}>${stats.totalCost.toFixed(2)}</Text>
+                <Text style={styles.statLabel}>total cost</Text>
               </View>
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>{stats.dailyAverage}</Text>
-                <Text style={styles.statLabel}>kWh/day avg</Text>
+                <Text style={styles.statValue}>${stats.dailyAverage}</Text>
+                <Text style={styles.statLabel}>daily avg</Text>
               </View>
             </View>
           </View>
@@ -362,38 +340,24 @@ const ConsumptionScreen: React.FC = () => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>🔥 Gas (Optional)</Text>
           
-          <View style={styles.inputRow}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Usage (units)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g., 150"
-                value={consumptionData.gasUsage}
-                onChangeText={(value) => formatNumberInputRealTime('gasUsage', value)}
-                keyboardType="decimal-pad"
-                placeholderTextColor="#888"
-              />
-            </View>
-            
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Cost ($)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g., 80.25"
-                value={consumptionData.gasCost}
-                onChangeText={(value) => formatCurrencyInputRealTime('gasCost', value)}
-                onBlur={() => {
-                  if (consumptionData.gasCost && !consumptionData.gasCost.includes('.')) {
-                    setConsumptionData(prev => ({ 
-                      ...prev, 
-                      gasCost: prev.gasCost + '.00' 
-                    }));
-                  }
-                }}
-                keyboardType="decimal-pad"
-                placeholderTextColor="#888"
-              />
-            </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Cost ($)</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g., 80.25"
+              value={consumptionData.gasCost}
+              onChangeText={(value) => formatCurrencyInputRealTime('gasCost', value)}
+              onBlur={() => {
+                if (consumptionData.gasCost && !consumptionData.gasCost.includes('.')) {
+                  setConsumptionData(prev => ({ 
+                    ...prev, 
+                    gasCost: prev.gasCost + '.00' 
+                  }));
+                }
+              }}
+              keyboardType="decimal-pad"
+              placeholderTextColor="#888"
+            />
           </View>
         </View>
 
@@ -401,38 +365,24 @@ const ConsumptionScreen: React.FC = () => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>💧 Water (Optional)</Text>
           
-          <View style={styles.inputRow}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Usage (gallons)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g., 2500"
-                value={consumptionData.waterUsage}
-                onChangeText={(value) => formatNumberInputRealTime('waterUsage', value)}
-                keyboardType="decimal-pad"
-                placeholderTextColor="#888"
-              />
-            </View>
-            
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Cost ($)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g., 45.75"
-                value={consumptionData.waterCost}
-                onChangeText={(value) => formatCurrencyInputRealTime('waterCost', value)}
-                onBlur={() => {
-                  if (consumptionData.waterCost && !consumptionData.waterCost.includes('.')) {
-                    setConsumptionData(prev => ({ 
-                      ...prev, 
-                      waterCost: prev.waterCost + '.00' 
-                    }));
-                  }
-                }}
-                keyboardType="decimal-pad"
-                placeholderTextColor="#888"
-              />
-            </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Cost ($)</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g., 45.75"
+              value={consumptionData.waterCost}
+              onChangeText={(value) => formatCurrencyInputRealTime('waterCost', value)}
+              onBlur={() => {
+                if (consumptionData.waterCost && !consumptionData.waterCost.includes('.')) {
+                  setConsumptionData(prev => ({ 
+                    ...prev, 
+                    waterCost: prev.waterCost + '.00' 
+                  }));
+                }
+              }}
+              keyboardType="decimal-pad"
+              placeholderTextColor="#888"
+            />
           </View>
         </View>
 
@@ -579,6 +529,20 @@ const styles = StyleSheet.create({
   // Custom Date
   customDateContainer: {
     marginTop: 16,
+  },
+  selectedDateContainer: {
+    marginTop: 16,
+    backgroundColor: '#F1F8E9',
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#4CAF50',
+  },
+  selectedDateText: {
+    fontSize: 14,
+    color: '#2E7D32',
+    fontWeight: '500',
+    textAlign: 'center',
   },
   helpText: {
     fontSize: 12,

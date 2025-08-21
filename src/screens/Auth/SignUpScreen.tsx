@@ -20,19 +20,19 @@ const SignUpScreen: React.FC = () => {
   };
 
   const handleSignUp = async () => {
-    // Validaciones básicas
+    // Basic validations
     if (!formData.firstName || !formData.lastName || !formData.email || !formData.password) {
-      Alert.alert('Error', 'Por favor completa todos los campos requeridos');
+      Alert.alert('Error', 'Please complete all required fields');
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      Alert.alert('Error', 'Las contraseñas no coinciden');
+      Alert.alert('Error', 'Passwords do not match');
       return;
     }
 
     if (formData.password.length < 6) {
-      Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres');
+      Alert.alert('Error', 'Password must be at least 6 characters long');
       return;
     }
 

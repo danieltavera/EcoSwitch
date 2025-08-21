@@ -58,7 +58,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const response = await loginApi(email, password);
       
       if (response.token && response.user) {
-        // Guardar token y datos del usuario
+        // Save token and user data
         await AsyncStorage.setItem(TOKEN_KEY, response.token);
         await AsyncStorage.setItem(USER_KEY, JSON.stringify(response.user));
         
@@ -81,7 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await AsyncStorage.removeItem(TOKEN_KEY);
       await AsyncStorage.removeItem(USER_KEY);
       
-      // Limpiar estado
+      // Clear state
       setToken(null);
       setUser(null);
       

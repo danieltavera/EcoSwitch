@@ -46,7 +46,7 @@ const BaseConsumptionScreen: React.FC = () => {
     setConsumptionData(prev => ({ ...prev, [field]: value }));
   };
 
-  // Función para formatear campos de dinero con decimales automáticamente
+  // Function to format money fields with decimals automatically
   const formatCurrencyInput = (field: string, value: string) => {
     // Remover caracteres no numéricos excepto punto decimal
     const cleanValue = value.replace(/[^0-9.]/g, '');
@@ -63,11 +63,11 @@ const BaseConsumptionScreen: React.FC = () => {
       formattedValue += '.00';
     }
     
-    // Actualizar el estado
+    // Update state
     setConsumptionData(prev => ({ ...prev, [field]: formattedValue }));
   };
 
-  // Función para formatear con decimales mientras el usuario escribe
+  // Function to format with decimals while user types
   const formatCurrencyInputRealTime = (field: string, value: string) => {
     // Remover caracteres no numéricos excepto punto decimal
     const cleanValue = value.replace(/[^0-9.]/g, '');
@@ -81,7 +81,7 @@ const BaseConsumptionScreen: React.FC = () => {
       formattedValue += '.' + parts[1].substring(0, 2);
     }
     
-    // Actualizar el estado sin añadir .00 automáticamente mientras escribe
+    // Update state without automatically adding .00 while typing
     setConsumptionData(prev => ({ ...prev, [field]: formattedValue }));
   };
 
