@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { ConsumptionNavigationProp } from '../../types/navigation';
+import { useAuth } from '../../context/AuthContext';
 
 const ConsumptionScreen: React.FC = () => {
   const navigation = useNavigation<ConsumptionNavigationProp>();
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [consumptionData, setConsumptionData] = useState({
     period: 'current',
@@ -90,28 +92,16 @@ const ConsumptionScreen: React.FC = () => {
     setIsLoading(true);
 
     try {
-      // Get real user from database instead of hardcoded ID
-      let user_id = null;
+      // Use the authenticated user ID
+      const user_id = user?.id;
       
-      try {
-        const API_BASE_URL = __DEV__ 
-          ? 'http://10.0.0.21:3000'
-          : 'https://your-production-api-url.com';
-          
-        const userResponse = await fetch(`${API_BASE_URL}/api/energy-consumption/users/all`);
-        const userData = await userResponse.json();
-        
-        if (userData.success && userData.data.length > 0) {
-          user_id = userData.data[0].id; // Use first available user
-          console.log('Using real user_id from database:', user_id);
-        } else {
-          throw new Error('No users found in database');
-        }
-      } catch (userError) {
-        console.error('Error fetching user from database:', userError);
-        Alert.alert('Error', 'Could not connect to user database. Please try again.');
+      if (!user_id) {
+        Alert.alert('Error', 'No authenticated user found. Please log in again.');
+        setIsLoading(false);
         return;
       }
+      
+      console.log('Using authenticated user_id:', user_id);
 
       // Determinar el período personalizado según la selección
       let customPeriod = undefined;
@@ -162,9 +152,7 @@ const ConsumptionScreen: React.FC = () => {
       }
 
       // Configurar la URL de la API
-      const API_BASE_URL = __DEV__ 
-        ? 'http://10.0.0.21:3000'  // IP local para dispositivos físicos/emuladores
-        : 'https://your-production-api-url.com'; // Cambiar por tu URL de producción
+      const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
 
       const response = await fetch(`${API_BASE_URL}/api/energy-consumption/updates`, {
         method: 'POST',

@@ -11,14 +11,14 @@ export type RootStackParamList = {
   WelcomeSetup: { userId?: string };
   WelcomeDashboard: { userId?: string };
   InitialSetup: undefined;
-  HomeData: { userId: string };
-  BaseConsumption: { userId: string };
+  HomeData: { userId?: string };
+  BaseConsumption: { userId?: string };
   Dashboard: { userId?: string };
   Consumption: undefined;
   Profile: undefined;
   Challenges: undefined;
   Education: undefined;
-  Notifications: { userId: string };
+  Notifications: { userId?: string };
 };
 
 // Tipos para navigation prop

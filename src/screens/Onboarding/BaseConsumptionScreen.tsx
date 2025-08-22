@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { BaseConsumptionNavigationProp, RouteProp } from '../../types/navigation';
+import { useAuth } from '../../context/AuthContext';
 
 const BaseConsumptionScreen: React.FC = () => {
   const navigation = useNavigation<BaseConsumptionNavigationProp>();
   const route = useRoute<RouteProp<'BaseConsumption'>>();
-  const { userId: paramUserId } = route.params || {};
-  const [userId, setUserId] = useState<string | null>(paramUserId || null);
-  const [fetchingUser, setFetchingUser] = useState(!paramUserId);
+  const { user } = useAuth();
+  
   const [consumptionData, setConsumptionData] = useState({
     monthlyElectricBill: '',
     monthlyGasBill: '',
@@ -19,58 +19,13 @@ const BaseConsumptionScreen: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch user if not provided via navigation
-  useEffect(() => {
-    if (!paramUserId) {
-      fetchCurrentUser();
-    }
-  }, [paramUserId]);
-
-  const fetchCurrentUser = async () => {
-    try {
-      const API_BASE_URL = __DEV__ 
-        ? 'http://10.0.0.21:3000'
-        : 'https://your-production-api-url.com';
-
-      console.log('BaseConsumptionScreen - Fetching user from:', `${API_BASE_URL}/api/energy-consumption/users/all`);
-      const response = await fetch(`${API_BASE_URL}/api/energy-consumption/users/all`);
-      const data = await response.json();
-
-      if (data.success && data.data.length > 0) {
-        const userId = data.data[0].id;
-        setUserId(userId);
-        console.log('BaseConsumptionScreen - Fetched current user:', userId);
-      } else {
-        console.log('BaseConsumptionScreen - No users found in database:', data);
-        throw new Error('No users found in database');
-      }
-    } catch (error) {
-      console.error('BaseConsumptionScreen - Error fetching current user:', error);
-      setError('Failed to load user data. Please try logging in again.');
-    } finally {
-      setFetchingUser(false);
-    }
-  };
-
-  // Show loading while fetching user
-  if (fetchingUser) {
+  // Check if user is authenticated
+  if (!user?.id) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#f8f9fa' }}>
         <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-          <ActivityIndicator size="large" color="#4CAF50" />
-          <Text style={[styles.subtitle, { marginTop: 16 }]}>Loading user data...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  // Check if userId is available
-  if (!userId) {
-    return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#f8f9fa' }}>
-        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-          <Text style={styles.title}>Error</Text>
-          <Text style={styles.subtitle}>User ID not found. Please log in again.</Text>
+          <Text style={styles.title}>Authentication Required</Text>
+          <Text style={styles.subtitle}>Please log in to continue.</Text>
           <TouchableOpacity 
             style={styles.finishButton}
             onPress={() => navigation.navigate('Login')}
@@ -176,8 +131,8 @@ const BaseConsumptionScreen: React.FC = () => {
     setIsLoading(true);
     
     try {
-      // Use the userId from navigation params
-      const user_id = userId;
+      // Use the authenticated user ID
+      const user_id = user.id;
       
       const requestData = {
         user_id,
@@ -191,9 +146,7 @@ const BaseConsumptionScreen: React.FC = () => {
       console.log('Sending energy consumption data:', requestData);
 
       // Configurar la URL de la API
-      const API_BASE_URL = __DEV__ 
-        ? 'http://10.0.0.21:3000'  // IP local para dispositivos físicos/emuladores
-        : 'https://your-production-api-url.com'; // Cambiar por tu URL de producción
+      const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
 
       const response = await fetch(`${API_BASE_URL}/api/energy-consumption`, {
         method: 'POST',
@@ -222,7 +175,7 @@ const BaseConsumptionScreen: React.FC = () => {
             // Reset navigation stack to prevent going back to onboarding
             navigation.reset({
               index: 0,
-              routes: [{ name: 'Dashboard', params: { userId } }],
+              routes: [{ name: 'Dashboard', params: {} }],
             });
           }
         }]

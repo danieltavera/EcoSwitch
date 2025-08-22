@@ -51,9 +51,7 @@ const SignInScreen: React.FC = () => {
       // Login successful - check if user has completed onboarding
       const checkOnboardingStatus = async () => {
         try {
-          const API_BASE_URL = __DEV__ 
-            ? 'http://10.0.0.21:3000'
-            : 'https://your-production-api-url.com';
+          const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
           
           // Get user from database
           const userResponse = await fetch(`${API_BASE_URL}/api/energy-consumption/users/all`);

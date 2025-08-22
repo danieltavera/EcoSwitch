@@ -1,9 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Configuración de la API
-const API_BASE_URL = __DEV__ 
-  ? 'http://10.0.0.21:3000'  // IP local para desarrollo
-  : 'https://your-production-api-url.com'; // URL de producción
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
 
 const TOKEN_KEY = 'jwt_token';
 
@@ -21,6 +19,7 @@ export const apiRequest = async (endpoint: string, options: ApiOptions & { metho
   // Headers base
   const requestHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
+    'ngrok-skip-browser-warning': 'true',
     ...customHeaders,
   };
 
@@ -41,13 +40,19 @@ export const apiRequest = async (endpoint: string, options: ApiOptions & { metho
   const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
   if (__DEV__) console.log('Full URL:', url);
 
-  // Realizar petición
+  // Realizar petición con timeout
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 segundos timeout
+    
     const response = await fetch(url, {
       method,
       headers: requestHeaders,
+      signal: controller.signal,
       ...restOptions,
     });
+    
+    clearTimeout(timeoutId);
 
     if (__DEV__) console.log('Response status:', response.status);
 

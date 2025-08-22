@@ -59,10 +59,9 @@ const DashboardScreen: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [energyTips, setEnergyTips] = useState<EnergyTip[]>([]);
-  const [realUserId, setRealUserId] = useState<string | null>(null);
 
-  // Use userId from auth context if available, otherwise get from database
-  const effectiveUserId = user?.id || userId || realUserId;
+  // Use userId from auth context if available, otherwise from route params
+  const effectiveUserId = user?.id || userId;
 
   const handleLogConsumption = () => {
     console.log('Navigate to Consumption Form');
@@ -113,23 +112,14 @@ const DashboardScreen: React.FC = () => {
     setError(null);
     
     try {
-      // Always get the latest user from database to ensure we have current data
-      let currentUserId = null;
+      // Use the authenticated user ID from auth context
+      const currentUserId = effectiveUserId;
       
-      console.log('DashboardScreen - Fetching latest user from database...');
-      const API_BASE_URL = __DEV__ 
-        ? 'http://10.0.0.21:3000'
-        : 'https://your-production-api-url.com';
-        
-      const userResponse = await fetch(`${API_BASE_URL}/api/energy-consumption/users/all`);
-      const userData = await userResponse.json();
+      console.log('DashboardScreen - Using authenticated user ID:', currentUserId);
+      const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
       
-      if (userData.success && userData.data.length > 0) {
-        currentUserId = userData.data[0].id;
-        setRealUserId(currentUserId); // Update state for future use
-        console.log('DashboardScreen - Using real user_id from database:', currentUserId);
-      } else {
-        throw new Error('No users found in database');
+      if (!currentUserId) {
+        throw new Error('No authenticated user found. Please log in again.');
       }
       
       // Configurar la URL de la API para el dashboard
@@ -170,7 +160,8 @@ const DashboardScreen: React.FC = () => {
       console.error('Error loading dashboard data:', error);
       console.error('DashboardScreen - Error details:', {
         effectiveUserId,
-        realUserId,
+        authUserId: user?.id,
+        routeUserId: userId,
         error: error instanceof Error ? error.message : error
       });
       
@@ -260,9 +251,7 @@ const DashboardScreen: React.FC = () => {
   // Function to load goal progress data from new system
   const loadGoalProgressData = async (currentUserId: string) => {
     try {
-      const API_BASE_URL = __DEV__ 
-        ? 'http://10.0.0.21:3000'
-        : 'https://your-production-api-url.com';
+      const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
 
       const response = await fetch(`${API_BASE_URL}/api/energy-consumption/goal-progress/${currentUserId}`, {
         method: 'GET',
@@ -425,29 +414,6 @@ const DashboardScreen: React.FC = () => {
       'July', 'August', 'September', 'October', 'November', 'December'
     ];
     return `${monthNames[parseInt(month) - 1]} ${year}`;
-  };
-
-  // Function to get real user from database
-  const getRealUserFromDatabase = async (): Promise<string | null> => {
-    try {
-      const API_BASE_URL = __DEV__ 
-        ? 'http://10.0.0.21:3000'
-        : 'https://your-production-api-url.com';
-        
-      const userResponse = await fetch(`${API_BASE_URL}/api/energy-consumption/users/all`);
-      const userData = await userResponse.json();
-      
-      if (userData.success && userData.data.length > 0) {
-        const userId = userData.data[0].id;
-        console.log('Found real user_id from database:', userId);
-        return userId;
-      }
-      
-      return null;
-    } catch (error) {
-      console.error('Error fetching user from database:', error);
-      return null;
-    }
   };
 
   if (isLoading) {
@@ -704,7 +670,6 @@ const DashboardScreen: React.FC = () => {
                         ]} />
                       </View>
                       <View style={styles.progressLabels}>
-                        <Text style={styles.progressLabelStart}>Baseline</Text>
                         <Text style={[
                           styles.progressLabelCurrent,
                           { 
@@ -983,9 +948,12 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   progressSubtext: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#666',
     textAlign: 'center',
+    lineHeight: 18,
+    paddingHorizontal: 8,
+    flexWrap: 'wrap',
   },
   
   // Sections
@@ -1236,30 +1204,37 @@ const styles = StyleSheet.create({
   enhancedGoalVisualization: {
     backgroundColor: '#f8f9fa',
     borderRadius: 12,
-    padding: 16,
+    padding: 12,
     marginVertical: 12,
     borderWidth: 1,
     borderColor: '#e0e0e0',
+    overflow: 'hidden',
   },
   progressMetrics: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 16,
+    flexWrap: 'wrap',
   },
   metricItem: {
     alignItems: 'center',
     flex: 1,
+    minWidth: 80,
+    paddingHorizontal: 4,
   },
   metricLabel: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#666',
     marginBottom: 4,
     fontWeight: '500',
+    textAlign: 'center',
   },
   metricValue: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
     color: '#333',
+    textAlign: 'center',
+    flexShrink: 1,
   },
   progressBarContainer: {
     marginBottom: 16,
@@ -1290,47 +1265,61 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     position: 'relative',
+    paddingHorizontal: 4,
+    minHeight: 16,
   },
   progressLabelStart: {
-    fontSize: 10,
+    fontSize: 9,
     color: '#666',
     position: 'absolute',
-    left: 0,
+    left: 4,
+    maxWidth: '30%',
   },
   progressLabelCurrent: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: 'bold',
     position: 'absolute',
-    transform: [{ translateX: -10 }],
+    transform: [{ translateX: -15 }],
+    maxWidth: '40%',
+    textAlign: 'center',
   },
   progressLabelEnd: {
-    fontSize: 10,
+    fontSize: 12,
     color: '#FF9800',
     position: 'absolute',
-    right: 0,
+    right: 4,
     fontWeight: '600',
+    maxWidth: '30%',
+    textAlign: 'right',
   },
   goalStatusContainer: {
     alignItems: 'center',
     paddingTop: 8,
+    paddingHorizontal: 8,
   },
   goalAchievedText: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#4CAF50',
     fontWeight: '600',
     textAlign: 'center',
+    lineHeight: 18,
+    flexWrap: 'wrap',
   },
   goalInProgressText: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#2196F3',
     fontWeight: '500',
     textAlign: 'center',
+    lineHeight: 18,
+    flexWrap: 'wrap',
   },
   goalBehindText: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#FF5722',
     fontWeight: '500',
     textAlign: 'center',
+    lineHeight: 18,
+    flexWrap: 'wrap',
   },
 });
 
