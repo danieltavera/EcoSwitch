@@ -62,7 +62,7 @@ const InitialSetupScreen: React.FC = () => {
               </View>
               
               <View style={styles.featureItem}>
-                <Text style={styles.featureIcon}>�</Text>
+                <Text style={styles.featureIcon}>💡</Text>
                 <View style={styles.featureContent}>
                   <Text style={styles.featureTitle}>Personalized Tips</Text>
                   <Text style={styles.featureDescription}>Get smart recommendations to reduce energy consumption</Text>

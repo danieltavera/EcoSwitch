@@ -14,8 +14,6 @@ import BaseConsumptionScreen from '../screens/Onboarding/BaseConsumptionScreen';
 import DashboardScreen from '../screens/Dashboard/DashboardScreen';
 import ConsumptionScreen from '../screens/Consumption/ConsumptionScreen';
 import ProfileScreen from '../screens/Profile/ProfileScreen';
-import ChallengesScreen from '../screens/Challenges/ChallengesScreen';
-import EducationScreen from '../screens/Education/EducationScreen';
 import NotificationScreen from '../screens/Notifications/NotificationScreen';
 import { RootStackParamList } from '../types/navigation';
 
@@ -90,16 +88,6 @@ const AppNavigator = () => (
       <Stack.Screen
         name="Profile"
         component={ProfileScreen}
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="Challenges"
-        component={ChallengesScreen}
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="Education"
-        component={EducationScreen}
         options={{ headerShown: false }}
       />
       <Stack.Screen
